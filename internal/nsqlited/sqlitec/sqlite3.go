@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 	"unsafe"
 )
 
@@ -109,7 +108,6 @@ type QueryParam struct {
 
 // QueryResult represents the result for Query.
 type QueryResult struct {
-	Time         time.Duration
 	LastInsertID int64
 	RowsAffected int64
 	Columns      []string
@@ -121,8 +119,6 @@ type QueryResult struct {
 // from start to finish, returning the result of the query for both
 // write and read operations.
 func (conn *Conn) Query(query string, parameters []QueryParam) (*QueryResult, error) {
-	start := time.Now()
-
 	stmt, err := conn.Prepare(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare query: %w", err)
@@ -213,7 +209,6 @@ func (conn *Conn) Query(query string, parameters []QueryParam) (*QueryResult, er
 	}
 
 	return &QueryResult{
-		Time:         time.Since(start),
 		LastInsertID: lastInsertID,
 		RowsAffected: rowsAffected,
 		Columns:      columns,

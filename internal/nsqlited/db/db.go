@@ -45,8 +45,8 @@ type Config struct {
 type DB struct {
 	Config
 	isInitialized     bool
-	readWriteConn     *sql.DB
-	readOnlyConn      *sql.DB
+	readWritePool     *sql.DB
+	readOnlyPool      *sql.DB
 	txId              syncutil.AtomicString
 	txIdLastUsed      syncutil.AtomicTime
 	txIdleMonitorStop chan any
@@ -93,28 +93,28 @@ func NewDB(config Config) (*DB, error) {
 	readWriteConnector := newConnector(databasePath, false)
 	readOnlyConnector := newConnector(databasePath, true)
 
-	readWriteConn := sql.OpenDB(readWriteConnector)
-	if err := readWriteConn.Ping(); err != nil {
+	readWritePool := sql.OpenDB(readWriteConnector)
+	if err := readWritePool.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping write connection: %w", err)
 	}
-	readWriteConn.SetConnMaxIdleTime(0)
-	readWriteConn.SetConnMaxLifetime(0)
-	readWriteConn.SetMaxIdleConns(1)
-	readWriteConn.SetMaxOpenConns(1)
+	readWritePool.SetConnMaxIdleTime(0)
+	readWritePool.SetConnMaxLifetime(0)
+	readWritePool.SetMaxIdleConns(1)
+	readWritePool.SetMaxOpenConns(1)
 
-	readOnlyConn := sql.OpenDB(readOnlyConnector)
-	if err := readOnlyConn.Ping(); err != nil {
+	readOnlyPool := sql.OpenDB(readOnlyConnector)
+	if err := readOnlyPool.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping read connection: %w", err)
 	}
-	readOnlyConn.SetConnMaxIdleTime(0)
-	readOnlyConn.SetConnMaxLifetime(0)
-	readOnlyConn.SetMaxIdleConns(100)
+	readOnlyPool.SetConnMaxIdleTime(0)
+	readOnlyPool.SetConnMaxLifetime(0)
+	readOnlyPool.SetMaxIdleConns(100)
 
 	db := &DB{
 		Config:            config,
 		isInitialized:     true,
-		readWriteConn:     readWriteConn,
-		readOnlyConn:      readOnlyConn,
+		readWritePool:     readWritePool,
+		readOnlyPool:      readOnlyPool,
 		txId:              *syncutil.NewAtomicString(""),
 		txIdLastUsed:      *syncutil.NewAtomicTime(time.Now()),
 		txIdleMonitorStop: make(chan any),
@@ -157,13 +157,13 @@ func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlitec.Conn, fu
 // getReadWriteRawConn returns the read-write connection and a function to
 // return it to the pool.
 func (db *DB) getReadWriteRawConn(ctx context.Context) (*sqlitec.Conn, func() error, error) {
-	return db.getRawConn(ctx, db.readWriteConn)
+	return db.getRawConn(ctx, db.readWritePool)
 }
 
 // getReadOnlyRawConn returns the read-only connection and a function to return it
 // to the pool.
 func (db *DB) getReadOnlyRawConn(ctx context.Context) (*sqlitec.Conn, func() error, error) {
-	return db.getRawConn(ctx, db.readOnlyConn)
+	return db.getRawConn(ctx, db.readOnlyPool)
 }
 
 // IsInitialized returns whether the DB instance is initialized.
@@ -201,14 +201,14 @@ func (db *DB) Close() error {
 		_, _ = db.executeRollbackQuery(context.Background(), db.txId.Load())
 	}
 
-	if db.readWriteConn != nil {
-		if err := db.readWriteConn.Close(); err != nil {
+	if db.readWritePool != nil {
+		if err := db.readWritePool.Close(); err != nil {
 			return fmt.Errorf("failed to close write connection: %w", err)
 		}
 	}
 
-	if db.readOnlyConn != nil {
-		if err := db.readOnlyConn.Close(); err != nil {
+	if db.readOnlyPool != nil {
+		if err := db.readOnlyPool.Close(); err != nil {
 			return fmt.Errorf("failed to close read connections: %w", err)
 		}
 	}

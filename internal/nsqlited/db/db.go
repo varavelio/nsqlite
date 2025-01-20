@@ -441,17 +441,31 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 	}, nil
 }
 
-// executeReadQuery executes a read query.
+// executeReadQuery executes a read query. If no transaction ID is provided, it
+// will use the read-only connection. If a transaction ID is provided, it will
+// use the read-write connection.
 func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, error) {
 	if !db.matchCurrentTx(query.TxId) {
 		return QueryResult{}, ErrTxNotMatch
 	}
 
-	conn, returnConn, err := db.getReadOnlyRawConn(ctx)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to get connection: %w", err)
+	var conn *sqlitec.Conn
+	var returnConn func() error
+	var err error
+
+	if query.TxId == "" {
+		conn, returnConn, err = db.getReadOnlyRawConn(ctx)
+		if err != nil {
+			return QueryResult{}, fmt.Errorf("failed to get read-only connection: %w", err)
+		}
+		defer func() { _ = returnConn() }()
+	} else {
+		conn, returnConn, err = db.getReadWriteRawConn(ctx)
+		if err != nil {
+			return QueryResult{}, fmt.Errorf("failed to get read-write connection: %w", err)
+		}
+		defer func() { _ = returnConn() }()
 	}
-	defer func() { _ = returnConn() }()
 
 	res, err := conn.Query(query.Query, query.Params)
 	if err != nil {

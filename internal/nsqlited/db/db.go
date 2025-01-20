@@ -182,11 +182,16 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 		case <-db.txIdleMonitorStop:
 			return
 		case <-ticker.C:
-			if db.txId.Load() == "" {
+			txId := db.txId.Load()
+			if txId == "" {
 				continue
 			}
 			if time.Since(db.txIdLastUsed.Load()) > timeout {
-				_, _ = db.executeRollbackQuery(context.Background(), db.txId.Load())
+				_, _ = db.executeRollbackQuery(context.Background(), txId)
+				db.Logger.InfoNs(log.NsDatabase, "transaction rolled back due to idle timeout", log.KV{
+					"txId":    txId,
+					"timeout": timeout.String(),
+				})
 			}
 		}
 	}

@@ -34,8 +34,8 @@ type Config struct {
 	Logger log.Logger
 	// DBStats is an instance of dbstats.DBStats.
 	DBStats *stats.DBStats
-	// DataDirectory is the directory where the database files are stored.
-	DataDirectory string
+	// DataDir is the directory where the database files are stored.
+	DataDir string
 	// TxIdleTimeout if a transaction is not active for this duration, it
 	// will be rolled back.
 	TxIdleTimeout time.Duration
@@ -79,17 +79,17 @@ func NewDB(config Config) (*DB, error) {
 	if !config.Logger.IsInitialized() {
 		return nil, errors.New("logger is required")
 	}
-	if config.DataDirectory == "" {
+	if config.DataDir == "" {
 		return nil, errors.New("database directory is required")
 	}
-	if err := os.MkdirAll(config.DataDirectory, 0755); err != nil {
+	if err := os.MkdirAll(config.DataDir, 0755); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 	if config.TxIdleTimeout <= 0 {
 		return nil, errors.New("transaction idle timeout must be provided")
 	}
 
-	databasePath := path.Join(config.DataDirectory, "database.sqlite")
+	databasePath := path.Join(config.DataDir, "database.sqlite")
 	readWriteConnector := newConnector(databasePath, false)
 	readOnlyConnector := newConnector(databasePath, true)
 

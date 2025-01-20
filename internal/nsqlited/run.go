@@ -37,7 +37,7 @@ func Run(ctx context.Context) error {
 	dbInstance, err := db.NewDB(db.Config{
 		Logger:        logger,
 		DBStats:       dbStats,
-		DataDirectory: conf.DataDir,
+		DataDir:       conf.DataDir,
 		TxIdleTimeout: conf.TxIdleTimeout,
 	})
 	if err != nil {

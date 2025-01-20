@@ -132,26 +132,26 @@ func NewDB(config Config) (*DB, error) {
 // getRawConn returns a raw connection from *sql.DB and a function to return
 // it to the pool.
 func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlitec.Conn, func() error, error) {
-	dConn, err := dbPool.Conn(ctx)
+	poolConn, err := dbPool.Conn(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get connection from pool: %w", err)
 	}
 
-	var sqlitecConn *sqlitec.Conn
-	err = dConn.Raw(func(driverConn any) error {
+	var rawConn *sqlitec.Conn
+	err = poolConn.Raw(func(driverConn any) error {
 		dc, ok := driverConn.(*sqlitedrv.Conn)
 		if !ok {
 			return fmt.Errorf("failed to cast driver connection")
 		}
-		sqlitecConn = dc.RawConn()
+		rawConn = dc.RawConn()
 		return nil
 	})
 	if err != nil {
-		dConn.Close()
+		poolConn.Close()
 		return nil, nil, fmt.Errorf("failed to get raw connection: %w", err)
 	}
 
-	return sqlitecConn, dConn.Close, nil
+	return rawConn, poolConn.Close, nil
 }
 
 // getReadWriteRawConn returns the read-write connection and a function to

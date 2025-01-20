@@ -22,10 +22,10 @@ import (
 )
 
 var (
-	ErrTxNotFound = errors.New("transaction not found or timed out, check your settings")
-	ErrTxWithinTx = errors.New("cannot start a transaction within a transaction")
-	ErrTxOnlyOne  = errors.New("only only one transaction is allowed at a time")
-	ErrTxNotMatch = errors.New("transaction ID does not match the currently active transaction")
+	ErrTxNotFound   = errors.New("transaction not found or timed out, check your settings")
+	ErrTxNotMatch   = errors.New("transaction ID does not match the currently active transaction")
+	ErrTxWithinTx   = errors.New("cannot start a transaction within a transaction")
+	ErrTxIdRequired = errors.New("transaction ID is required for this operation")
 )
 
 // Config represents the configuration for a DB instance.
@@ -50,6 +50,7 @@ type DB struct {
 	txId              syncutil.AtomicString
 	txIdLastUsed      syncutil.AtomicTime
 	txIdleMonitorStop chan any
+	txMu              sync.Mutex
 	writeMu           sync.Mutex
 	closeWg           sync.WaitGroup
 }
@@ -135,6 +136,7 @@ func NewDB(config Config) (*DB, error) {
 		txId:              *syncutil.NewAtomicString(""),
 		txIdLastUsed:      *syncutil.NewAtomicTime(time.Now()),
 		txIdleMonitorStop: make(chan any),
+		txMu:              sync.Mutex{},
 		writeMu:           sync.Mutex{},
 		closeWg:           sync.WaitGroup{},
 	}
@@ -288,6 +290,17 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
 	}
 
+	if query.TxId != "" {
+		currentTxId := db.txId.Load()
+		if currentTxId == "" {
+			return QueryResult{}, ErrTxNotFound
+		}
+		if query.TxId != currentTxId {
+			return QueryResult{}, ErrTxNotMatch
+		}
+		db.txIdLastUsed.Store(time.Now())
+	}
+
 	switch typeOfQuery {
 	case QueryTypeBegin:
 		return db.executeBeginQuery(ctx, query.TxId)
@@ -306,14 +319,18 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 
 // executeBeginQuery executes a begin query using the read-write connection.
 func (db *DB) executeBeginQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	// TODO: Add support for queuing transactions when one is already active.
-	if db.txId.Load() != "" {
+	if queryTxId != "" {
 		return QueryResult{}, ErrTxWithinTx
 	}
 
-	if db.isCurrentTx(queryTxId) {
-		return QueryResult{}, ErrTxWithinTx
-	}
+	db.DBStats.IncQueuedBegins()
+	defer db.DBStats.DecQueuedBegins()
+
+	// We need to lock the transaction mutex to ensure that we don't start
+	// a new transaction while another transaction is in progress.
+	//
+	// The unlock is done either in the commit or rollback functions.
+	db.txMu.Lock()
 
 	conn, returnConn, err := db.getReadWriteRawConn(ctx)
 	if err != nil {
@@ -338,8 +355,8 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxId string) (QueryRes
 
 // executeCommitQuery commits the existing transaction with the given ID.
 func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	if !db.isCurrentTx(queryTxId) {
-		return QueryResult{}, ErrTxNotFound
+	if queryTxId == "" {
+		return QueryResult{}, ErrTxIdRequired
 	}
 
 	conn, returnConn, err := db.getReadWriteRawConn(ctx)
@@ -355,6 +372,7 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryRe
 	db.txId.Store("")
 	db.txIdLastUsed.Store(time.Now())
 	db.DBStats.IncCommits()
+	db.txMu.Unlock()
 
 	return QueryResult{
 		Type: QueryTypeCommit,
@@ -363,8 +381,8 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryRe
 
 // executeRollbackQuery rolls back an existing transaction.
 func (db *DB) executeRollbackQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	if !db.isCurrentTx(queryTxId) {
-		return QueryResult{}, ErrTxNotFound
+	if queryTxId == "" {
+		return QueryResult{}, ErrTxIdRequired
 	}
 
 	conn, returnConn, err := db.getReadWriteRawConn(ctx)
@@ -380,32 +398,11 @@ func (db *DB) executeRollbackQuery(ctx context.Context, queryTxId string) (Query
 	db.txId.Store("")
 	db.txIdLastUsed.Store(time.Now())
 	db.DBStats.IncRollbacks()
+	db.txMu.Unlock()
 
 	return QueryResult{
 		Type: QueryTypeRollback,
 	}, nil
-}
-
-// isCurrentTx returns true if the provided transaction ID is the current one.
-// it also updates the lastUsed time.
-func (db *DB) isCurrentTx(txId string) bool {
-	current := db.txId.Load()
-	if txId == "" || current == "" || txId != current {
-		return false
-	}
-
-	db.txIdLastUsed.Store(time.Now())
-	return true
-}
-
-// matchCurrentTx returns true if the provided transaction ID is empty or matches
-// the current transaction ID.
-func (db *DB) matchCurrentTx(txId string) bool {
-	if txId == "" {
-		return true
-	}
-
-	return db.isCurrentTx(txId)
 }
 
 // executeWriteQuery increments the write queue count, sends the task,
@@ -416,10 +413,6 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 
 	db.writeMu.Lock()
 	defer db.writeMu.Unlock()
-
-	if !db.matchCurrentTx(query.TxId) {
-		return QueryResult{}, ErrTxNotMatch
-	}
 
 	conn, returnConn, err := db.getReadWriteRawConn(ctx)
 	if err != nil {
@@ -447,10 +440,6 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 // will use the read-only connection. If a transaction ID is provided, it will
 // use the read-write connection.
 func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, error) {
-	if !db.matchCurrentTx(query.TxId) {
-		return QueryResult{}, ErrTxNotMatch
-	}
-
 	var conn *sqlitec.Conn
 	var returnConn func() error
 	var err error

@@ -61,14 +61,31 @@ type Query struct {
 	Params []sqlitec.QueryParam
 }
 
+// queryType represents the type of a given SQLite query.
+type queryType enum.Member[string]
+
+var (
+	QueryTypeUnknown  = queryType{Value: "unknown"}
+	QueryTypeRead     = queryType{Value: "read"}
+	QueryTypeWrite    = queryType{Value: "write"}
+	QueryTypeBegin    = queryType{Value: "begin"}
+	QueryTypeCommit   = queryType{Value: "commit"}
+	QueryTypeRollback = queryType{Value: "rollback"}
+)
+
 // QueryResult represents the result of a query.
 type QueryResult struct {
+	// For all queries
 	Type queryType
+
+	// For begin queries
 	TxId string
 
+	// For write queries
 	LastInsertID int64
 	RowsAffected int64
 
+	// For read and write queries that return rows
 	Columns []string
 	Types   []string
 	Rows    [][]any
@@ -222,18 +239,6 @@ func (db *DB) Close() error {
 	return nil
 }
 
-// queryType represents the type of a given SQLite query.
-type queryType enum.Member[string]
-
-var (
-	QueryTypeUnknown  = queryType{Value: "unknown"}
-	QueryTypeRead     = queryType{Value: "read"}
-	QueryTypeWrite    = queryType{Value: "write"}
-	QueryTypeBegin    = queryType{Value: "begin"}
-	QueryTypeCommit   = queryType{Value: "commit"}
-	QueryTypeRollback = queryType{Value: "rollback"}
-)
-
 // detectQueryType detects the type of query between read, write, begin, commit,
 // and rollback.
 func (db *DB) detectQueryType(ctx context.Context, query string) (queryType, error) {
@@ -353,7 +358,6 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryRe
 
 	return QueryResult{
 		Type: QueryTypeCommit,
-		TxId: queryTxId,
 	}, nil
 }
 
@@ -379,7 +383,6 @@ func (db *DB) executeRollbackQuery(ctx context.Context, queryTxId string) (Query
 
 	return QueryResult{
 		Type: QueryTypeRollback,
-		TxId: queryTxId,
 	}, nil
 }
 
@@ -431,7 +434,6 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 
 	db.DBStats.IncWrites()
 	return QueryResult{
-		TxId:         query.TxId,
 		Type:         QueryTypeWrite,
 		LastInsertID: res.LastInsertID,
 		RowsAffected: res.RowsAffected,
@@ -474,12 +476,9 @@ func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, e
 
 	db.DBStats.IncReads()
 	return QueryResult{
-		TxId:         query.TxId,
-		Type:         QueryTypeRead,
-		LastInsertID: res.LastInsertID,
-		RowsAffected: res.RowsAffected,
-		Columns:      res.Columns,
-		Types:        res.Types,
-		Rows:         res.Rows,
+		Type:    QueryTypeRead,
+		Columns: res.Columns,
+		Types:   res.Types,
+		Rows:    res.Rows,
 	}, nil
 }

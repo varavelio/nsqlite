@@ -202,8 +202,9 @@ func (db *DB) Close() error {
 	close(db.txIdleMonitorStop)
 	db.closeWg.Wait()
 
-	if db.txId.Load() != "" {
-		_, _ = db.executeRollbackQuery(context.Background(), db.txId.Load())
+	txId := db.txId.Load()
+	if txId != "" {
+		_, _ = db.executeRollbackQuery(context.Background(), txId)
 	}
 
 	if db.readWritePool != nil {

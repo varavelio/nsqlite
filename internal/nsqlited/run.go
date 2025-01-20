@@ -25,7 +25,7 @@ func Run(ctx context.Context) error {
 	fmt.Println(version.ServerVersion())
 	logger := log.NewLogger(os.Stdout)
 	logger.Info("starting NSQLite server", log.KV{
-		"dataDirectory": conf.DataDirectory,
+		"dataDir":       conf.DataDir,
 		"listenHost":    conf.ListenHost,
 		"listenPort":    conf.ListenPort,
 		"txIdleTimeout": conf.TxIdleTimeout.String(),
@@ -37,7 +37,7 @@ func Run(ctx context.Context) error {
 	dbInstance, err := db.NewDB(db.Config{
 		Logger:        logger,
 		DBStats:       dbStats,
-		DataDirectory: conf.DataDirectory,
+		DataDirectory: conf.DataDir,
 		TxIdleTimeout: conf.TxIdleTimeout,
 	})
 	if err != nil {
@@ -50,13 +50,12 @@ func Run(ctx context.Context) error {
 	}()
 
 	serv, err := server.NewServer(server.Config{
-		Logger:             logger,
-		DBStats:            dbStats,
-		DB:                 dbInstance,
-		ListenHost:         conf.ListenHost,
-		ListenPort:         conf.ListenPort,
-		AuthTokenAlgorithm: conf.AuthTokenAlgorithm,
-		AuthToken:          conf.AuthToken,
+		Logger:     logger,
+		DBStats:    dbStats,
+		DB:         dbInstance,
+		AuthToken:  conf.AuthToken,
+		ListenHost: conf.ListenHost,
+		ListenPort: conf.ListenPort,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)

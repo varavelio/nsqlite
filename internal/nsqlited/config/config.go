@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -14,12 +13,11 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	DataDirectory      string        `arg:"--data-directory,env:NSQLITE_DATA_DIRECTORY" help:"Directory for NSQLite database files" default:"./data"`
-	AuthTokenAlgorithm string        `arg:"--auth-token-algorithm,env:NSQLITE_AUTH_TOKEN_ALGORITHM" help:"Hash algorithm for the auth token (plaintext, argon2, bcrypt)" default:"plaintext"`
-	AuthToken          string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN" help:"Pre-hashed auth token; leave empty to disable authentication"`
-	ListenHost         string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST" help:"Host for the server to listen on" default:"0.0.0.0"`
-	ListenPort         string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT" help:"Port for the server to listen on" default:"9876"`
-	TxIdleTimeout      time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h" default:"10s"`
+	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR" help:"Directory for NSQLite database files" default:"./data"`
+	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN" help:"Authentication token (plaintext or hashed with bcrypt/argon2); leave empty to disable."`
+	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST" help:"Host for the server to listen on" default:"0.0.0.0"`
+	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT" help:"Port for the server to listen on" default:"9876"`
+	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h" default:"10s"`
 }
 
 func (Config) Version() string {
@@ -49,31 +47,11 @@ func MustParse(args []string) Config {
 		log.Fatal("invalid listen port, valid values are 1-65535")
 	}
 
-	if err := validateAuthTokenAlgorithm(cfg.AuthTokenAlgorithm); err != nil {
-		log.Fatal(err)
-	}
-
 	if err := validateTransactionTimeout(cfg.TxIdleTimeout); err != nil {
 		log.Fatal(err)
 	}
 
 	return cfg
-}
-
-// validateAuthTokenAlgorithm validates if algorithm is a valid auth algorithm.
-func validateAuthTokenAlgorithm(algorithm string) error {
-	valid := []string{"plaintext", "argon2", "bcrypt"}
-
-	for _, v := range valid {
-		if algorithm == v {
-			return nil
-		}
-	}
-
-	return fmt.Errorf(
-		"invalid auth algorithm, valid values are: %s",
-		strings.Join(valid, ", "),
-	)
 }
 
 // validateTransactionTimeout validates if timeout is greater than zero.

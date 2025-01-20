@@ -33,42 +33,28 @@ func (s *Server) queryHandlerAuthMiddleware(
 			return unauthorized()
 		}
 
-		if s.AuthTokenAlgorithm == "plaintext" {
-			if checkPlaintextAuth(clientAuthToken, s.AuthToken) {
-				return next(w, r)
-			}
-		}
-
-		if s.AuthTokenAlgorithm == "argon2" {
-			if checkArgon2Auth(clientAuthToken, s.AuthToken) {
-				return next(w, r)
-			}
-		}
-
-		if s.AuthTokenAlgorithm == "bcrypt" {
-			if checkBcryptAuth(clientAuthToken, s.AuthToken) {
-				return next(w, r)
-			}
+		if checkAuthToken(s.authTokenAlgo, clientAuthToken, s.AuthToken) {
+			return next(w, r)
 		}
 
 		return unauthorized()
 	}
 }
 
-// checkPlaintextAuth checks if the client token matches the server token
-// in plaintext.
-func checkPlaintextAuth(clientToken string, serverToken string) bool {
-	return clientToken == serverToken
-}
+// checkAuthToken checks if the token sent by the client matches the server's
+// defined auth token.
+func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken string, serverToken string) bool {
+	if tokenAlgo == cryptoutil.HashAlgoPlaintext {
+		return clientToken == serverToken
+	}
 
-// checkArgon2Auth checks if the client token matches the server token
-// using the Argon2 algorithm.
-func checkArgon2Auth(clientToken string, serverToken string) bool {
-	return cryptoutil.Argon2CheckHash(clientToken, serverToken)
-}
+	if tokenAlgo == cryptoutil.HashAlgoArgon2 {
+		return cryptoutil.Argon2CheckHash(clientToken, serverToken)
+	}
 
-// checkBcryptAuth checks if the client token matches the server token
-// using the Bcrypt algorithm.
-func checkBcryptAuth(clientToken string, serverToken string) bool {
-	return cryptoutil.BcryptCheckHash(clientToken, serverToken)
+	if tokenAlgo == cryptoutil.HashAlgoBcrypt {
+		return cryptoutil.BcryptCheckHash(clientToken, serverToken)
+	}
+
+	return false
 }

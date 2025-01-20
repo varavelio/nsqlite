@@ -9,6 +9,7 @@ import (
 	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/log"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/stats"
+	"github.com/nsqlite/nsqlite/internal/util/cryptoutil"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 )
 
@@ -20,19 +21,18 @@ type Config struct {
 	DBStats *stats.DBStats
 	// DB is the NSQLite database instance to use.
 	DB *db.DB
+	// AuthToken is the auth token to use.
+	AuthToken string
 	// ListenHost is the host to listen on.
 	ListenHost string
 	// ListenPort is the port to listen on.
 	ListenPort string
-	// AuthTokenAlgorithm is the algorithm to use for the auth token.
-	AuthTokenAlgorithm string
-	// AuthToken is the auth token to use.
-	AuthToken string
 }
 
 // Server is the server for NSQLite.
 type Server struct {
 	Config
+	authTokenAlgo cryptoutil.HashAlgo
 	isInitialized bool
 	server        http.Server
 }
@@ -45,12 +45,10 @@ func NewServer(config Config) (*Server, error) {
 	if config.ListenPort == "" {
 		config.ListenPort = "9876"
 	}
-	if config.AuthTokenAlgorithm == "" {
-		config.AuthTokenAlgorithm = "plaintext"
-	}
 
 	s := Server{
 		Config:        config,
+		authTokenAlgo: cryptoutil.GetHashAlgo(config.AuthToken),
 		isInitialized: true,
 		server:        http.Server{},
 	}

@@ -8,6 +8,7 @@ import (
 type LoadedStats struct {
 	StartedAt          string `json:"startedAt"`
 	Uptime             string `json:"uptime"`
+	QueuedBegins       int64  `json:"queuedBegins"`
 	QueuedWrites       int64  `json:"queuedWrites"`
 	QueuedHTTPRequests int64  `json:"queuedHttpRequests"`
 	Totals             Totals `json:"totals"`
@@ -99,6 +100,7 @@ func (db *DBStats) LoadStats() LoadedStats {
 			HTTPRequests: totalHTTPRequests,
 		},
 		Stats:              allStats,
+		QueuedBegins:       db.queuedBegins.Load(),
 		QueuedWrites:       db.queuedWrites.Load(),
 		QueuedHTTPRequests: db.queuedHTTPRequests.Load(),
 		StartedAt:          db.startedAt.Format(time.RFC3339),

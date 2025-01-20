@@ -21,6 +21,7 @@ type minuteData struct {
 type DBStats struct {
 	startedAt          time.Time
 	minutes            sync.Map // key: string (minute RFC3339) -> value: *minuteData
+	queuedBegins       atomic.Int64
 	queuedWrites       atomic.Int64
 	queuedHTTPRequests atomic.Int64
 	stopChan           chan bool
@@ -123,6 +124,16 @@ func (db *DBStats) IncErrors() {
 func (db *DBStats) IncHTTPRequests() {
 	md := db.getOrCreateMinuteData()
 	md.httpRequests.Add(1)
+}
+
+// IncQueuedBegins increments the queued begins counter atomically.
+func (db *DBStats) IncQueuedBegins() {
+	db.queuedBegins.Add(1)
+}
+
+// DecQueuedBegins decrements the queued begins counter atomically.
+func (db *DBStats) DecQueuedBegins() {
+	db.queuedBegins.Add(-1)
 }
 
 // IncQueuedWrites increments the queued writes counter atomically.

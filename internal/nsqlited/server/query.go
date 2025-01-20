@@ -12,13 +12,21 @@ import (
 
 // ResponseResult represents the structure of a query result.
 type ResponseResult struct {
-	Time  float64 `json:"time"`
-	TxId  string  `json:"txId,omitempty"`
-	Error string  `json:"error,omitempty"`
+	// For all queries
+	Type string  `json:"type"`
+	Time float64 `json:"time"`
 
+	// For error responses
+	Error string `json:"error,omitempty"`
+
+	// For begin queries
+	TxId string `json:"txId,omitempty"`
+
+	// For write queries
 	LastInsertID int64 `json:"lastInsertId,omitempty"`
 	RowsAffected int64 `json:"rowsAffected,omitempty"`
 
+	// For read and write queries that return rows
 	Columns []string `json:"columns,omitempty"`
 	Types   []string `json:"types,omitempty"`
 	Rows    [][]any  `json:"rows,omitempty"`
@@ -60,6 +68,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 
 		if q.Query == "" {
 			results = append(results, ResponseResult{
+				Type:  "error",
 				Time:  time.Since(thisStart).Seconds(),
 				Error: "Empty query",
 			})
@@ -73,22 +82,61 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 		})
 		if err != nil {
 			results = append(results, ResponseResult{
+				Type:  "error",
 				Time:  time.Since(thisStart).Seconds(),
 				Error: err.Error(),
 			})
 			continue
 		}
 
+		if res.Type == db.QueryTypeBegin {
+			results = append(results, ResponseResult{
+				Type: "begin",
+				Time: time.Since(thisStart).Seconds(),
+				TxId: res.TxId,
+			})
+		}
+
+		if res.Type == db.QueryTypeCommit {
+			results = append(results, ResponseResult{
+				Type: "commit",
+				Time: time.Since(thisStart).Seconds(),
+			})
+		}
+
+		if res.Type == db.QueryTypeRollback {
+			results = append(results, ResponseResult{
+				Type: "rollback",
+				Time: time.Since(thisStart).Seconds(),
+			})
+		}
+
+		if res.Type == db.QueryTypeWrite {
+			results = append(results, ResponseResult{
+				Type:         "write",
+				Time:         time.Since(thisStart).Seconds(),
+				LastInsertID: res.LastInsertID,
+				RowsAffected: res.RowsAffected,
+				Columns:      res.Columns,
+				Types:        res.Types,
+				Rows:         res.Rows,
+			})
+		}
+
+		if res.Type == db.QueryTypeRead {
+			results = append(results, ResponseResult{
+				Type:    "read",
+				Time:    time.Since(thisStart).Seconds(),
+				Columns: res.Columns,
+				Types:   res.Types,
+				Rows:    res.Rows,
+			})
+		}
+
 		results = append(results, ResponseResult{
-			Time: time.Since(thisStart).Seconds(),
-			TxId: res.TxId,
-
-			LastInsertID: res.LastInsertID,
-			RowsAffected: res.RowsAffected,
-
-			Columns: res.Columns,
-			Types:   res.Types,
-			Rows:    res.Rows,
+			Type:  "error",
+			Time:  time.Since(thisStart).Seconds(),
+			Error: "Unknown query response type: " + res.Type.Value,
 		})
 	}
 

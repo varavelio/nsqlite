@@ -63,13 +63,15 @@ func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 	}
 
 	if res.Type == nsqlitehttp.QueryResponseTypeWrite {
-		tw := styled.NewTableWriter()
-		tw.AppendHeader(table.Row{"Rows Affected", "Last Insert ID"})
-		tw.AppendRow(table.Row{res.RowsAffected, res.LastInsertID})
-		fmt.Println(tw.Render())
+		if res.RowsAffected > 0 {
+			tw := styled.NewTableWriter()
+			tw.AppendHeader(table.Row{"Rows Affected", "Last Insert ID"})
+			tw.AppendRow(table.Row{res.RowsAffected, res.LastInsertID})
+			fmt.Println(tw.Render())
+		}
 
 		if len(res.Rows) > 0 {
-			tw = styled.NewTableWriter()
+			tw := styled.NewTableWriter()
 			header := table.Row{}
 			for _, col := range res.Columns {
 				header = append(header, col)

@@ -9,7 +9,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.6.5
 	github.com/matthewhartstonge/argon2 v1.1.1
 	github.com/mattn/go-sqlite3 v1.14.24
-	github.com/nsqlite/nsqlitego v0.1.10
+	github.com/nsqlite/nsqlitego v0.1.11
 	github.com/orsinium-labs/enum v1.4.0
 	github.com/peterh/liner v1.2.2
 	github.com/schollz/progressbar/v3 v3.18.0

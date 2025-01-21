@@ -13,7 +13,7 @@ import (
 
 func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 	res, err := r.client.SendQuery(context.TODO(), nsqlitehttp.Query{
-		TxId:   r.txId,
+		TxID:   r.txID,
 		Query:  input,
 		Params: params,
 	})
@@ -27,7 +27,7 @@ func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 	isError := res.Error != ""
 	hasReads := len(res.Columns) > 0
 	hasWrites := res.RowsAffected > 0
-	hasTxId := res.TxId != ""
+	hasTxId := res.TxID != ""
 	isOk := !isError && !hasReads && !hasWrites
 
 	if isError {
@@ -46,7 +46,7 @@ func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 		tw.AppendHeader(table.Row{"OK"})
 		tw.AppendRow(table.Row{"Transaction started"})
 		fmt.Println(tw.Render())
-		r.setTxId(res.TxId)
+		r.setTxId(res.TxID)
 	}
 
 	if isOk {

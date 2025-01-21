@@ -208,7 +208,7 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 			if time.Since(db.txLastUsed.Load()) > timeout {
 				_, _ = db.executeRollbackQuery(context.Background(), txID)
 				db.Logger.InfoNs(log.NsDatabase, "transaction rolled back due to idle timeout", log.KV{
-					"txID":    txID,
+					"txId":    txID,
 					"timeout": timeout.String(),
 				})
 			}

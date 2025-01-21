@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
+	"github.com/nsqlite/nsqlite/internal/nsqlited/log"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/sqlitec"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 )
@@ -72,6 +73,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Time:  time.Since(thisStart).Seconds(),
 				Error: "Empty query",
 			})
+			s.Logger.ErrorNs(log.NsServer, "Error executing query", log.KV{
+				"query":  q.Query,
+				"params": q.Params,
+				"txId":   q.TxID,
+				"error":  "Empty query",
+			})
 			continue
 		}
 
@@ -85,6 +92,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Type:  "error",
 				Time:  time.Since(thisStart).Seconds(),
 				Error: err.Error(),
+			})
+			s.Logger.ErrorNs(log.NsServer, "Error executing query", log.KV{
+				"query":  q.Query,
+				"params": q.Params,
+				"txId":   q.TxID,
+				"error":  err.Error(),
 			})
 			continue
 		}
@@ -142,6 +155,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 			Type:  "error",
 			Time:  time.Since(thisStart).Seconds(),
 			Error: "Unknown query response type: " + res.Type.Value,
+		})
+		s.Logger.ErrorNs(log.NsServer, "Unknown query response type", log.KV{
+			"query":  q.Query,
+			"params": q.Params,
+			"txId":   q.TxID,
+			"type":   res.Type.Value,
 		})
 	}
 

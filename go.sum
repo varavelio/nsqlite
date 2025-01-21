@@ -35,8 +35,8 @@ github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db h1:62I3jR2Em
 github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db/go.mod h1:l0dey0ia/Uv7NcFFVbCLtqEBQbrT4OCwCSKTEv6enCw=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e h1:fD57ERR4JtEqsWbfPhv4DMiApHyliiK5xCTNVSPiaAs=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
-github.com/nsqlite/nsqlitego v0.1.11 h1:g3JGaNSb7J2n3iKSQXLCMAaIi470DM7nn65HZWGa4m8=
-github.com/nsqlite/nsqlitego v0.1.11/go.mod h1:p9QuKXGh0PYTNJQjopetGbbAMvZEmbEhdUZAWEB7fUQ=
+github.com/nsqlite/nsqlitego v0.1.12 h1:y+Z90ZloZBRgv8QoKqODHWlRKPgXEFYHak340KKn+7I=
+github.com/nsqlite/nsqlitego v0.1.12/go.mod h1:p9QuKXGh0PYTNJQjopetGbbAMvZEmbEhdUZAWEB7fUQ=
 github.com/orsinium-labs/enum v1.4.0 h1:3NInlfV76kuAg0kq2FFUondmg3WO7gMEgrPPrlzLDUM=
 github.com/orsinium-labs/enum v1.4.0/go.mod h1:Qj5IK2pnElZtkZbGDxZMjpt7SUsn4tqE5vRelmWaBbc=
 github.com/peterh/liner v1.2.2 h1:aJ4AOodmL+JxOZZEL2u9iJf8omNRpqHc/EbrK+3mAXw=

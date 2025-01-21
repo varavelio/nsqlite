@@ -342,14 +342,14 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryRes
 		return QueryResult{}, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
-	txId := uuid.NewString()
-	db.txID.Store(txId)
+	txID := uuid.NewString()
+	db.txID.Store(txID)
 	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncBegins()
 
 	return QueryResult{
 		Type: QueryTypeBegin,
-		TxID: txId,
+		TxID: txID,
 	}, nil
 }
 

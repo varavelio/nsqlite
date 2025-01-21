@@ -180,9 +180,9 @@ func (r *Repl) Shutdown() {
 	r.stop()
 }
 
-// setTxId sets the current transaction ID for the REPL. Send empty string to
+// setTxID sets the current transaction ID for the REPL. Send empty string to
 // reset the transaction ID.
-func (r *Repl) setTxId(txId string) {
+func (r *Repl) setTxID(txId string) {
 	r.txID = txId
 }
 

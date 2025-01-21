@@ -27,7 +27,7 @@ func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 	isError := res.Error != ""
 	hasReads := len(res.Columns) > 0
 	hasWrites := res.RowsAffected > 0
-	hasTxId := res.TxID != ""
+	hasTxID := res.TxID != ""
 	isOk := !isError && !hasReads && !hasWrites
 
 	if isError {
@@ -37,16 +37,16 @@ func cmdQuery(r *Repl, input string, params []nsqlitehttp.QueryParam) {
 		fmt.Println(tw.Render())
 
 		if strings.Contains(res.Error, db.ErrTxNotFound.Error()) {
-			r.setTxId("")
+			r.setTxID("")
 		}
 	}
 
-	if hasTxId {
+	if hasTxID {
 		tw := styled.NewTableWriter()
 		tw.AppendHeader(table.Row{"OK"})
 		tw.AppendRow(table.Row{"Transaction started"})
 		fmt.Println(tw.Render())
-		r.setTxId(res.TxID)
+		r.setTxID(res.TxID)
 	}
 
 	if isOk {

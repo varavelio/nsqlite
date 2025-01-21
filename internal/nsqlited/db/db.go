@@ -57,7 +57,7 @@ type DB struct {
 
 // Query represents a query to be executed.
 type Query struct {
-	TxId   string
+	TxID   string
 	Query  string
 	Params []sqlitec.QueryParam
 }
@@ -80,7 +80,7 @@ type QueryResult struct {
 	Type queryType
 
 	// For begin queries
-	TxId string
+	TxID string
 
 	// For write queries
 	LastInsertID int64
@@ -290,12 +290,12 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
 	}
 
-	if query.TxId != "" {
-		currentTxId := db.txId.Load()
-		if currentTxId == "" {
+	if query.TxID != "" {
+		currentTxID := db.txId.Load()
+		if currentTxID == "" {
 			return QueryResult{}, ErrTxNotFound
 		}
-		if query.TxId != currentTxId {
+		if query.TxID != currentTxID {
 			return QueryResult{}, ErrTxNotMatch
 		}
 		db.txIdLastUsed.Store(time.Now())
@@ -303,11 +303,11 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 
 	switch typeOfQuery {
 	case QueryTypeBegin:
-		return db.executeBeginQuery(ctx, query.TxId)
+		return db.executeBeginQuery(ctx, query.TxID)
 	case QueryTypeCommit:
-		return db.executeCommitQuery(ctx, query.TxId)
+		return db.executeCommitQuery(ctx, query.TxID)
 	case QueryTypeRollback:
-		return db.executeRollbackQuery(ctx, query.TxId)
+		return db.executeRollbackQuery(ctx, query.TxID)
 	case QueryTypeRead:
 		return db.executeReadQuery(ctx, query)
 	case QueryTypeWrite:
@@ -318,8 +318,8 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 }
 
 // executeBeginQuery executes a begin query using the read-write connection.
-func (db *DB) executeBeginQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	if queryTxId != "" {
+func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+	if queryTxID != "" {
 		return QueryResult{}, ErrTxWithinTx
 	}
 
@@ -349,13 +349,13 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxId string) (QueryRes
 
 	return QueryResult{
 		Type: QueryTypeBegin,
-		TxId: txId,
+		TxID: txId,
 	}, nil
 }
 
 // executeCommitQuery commits the existing transaction with the given ID.
-func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	if queryTxId == "" {
+func (db *DB) executeCommitQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+	if queryTxID == "" {
 		return QueryResult{}, ErrTxIdRequired
 	}
 
@@ -380,8 +380,8 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxId string) (QueryRe
 }
 
 // executeRollbackQuery rolls back an existing transaction.
-func (db *DB) executeRollbackQuery(ctx context.Context, queryTxId string) (QueryResult, error) {
-	if queryTxId == "" {
+func (db *DB) executeRollbackQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+	if queryTxID == "" {
 		return QueryResult{}, ErrTxIdRequired
 	}
 
@@ -444,7 +444,7 @@ func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, e
 	var returnConn func() error
 	var err error
 
-	if query.TxId == "" {
+	if query.TxID == "" {
 		conn, returnConn, err = db.getReadOnlyRawConn(ctx)
 		if err != nil {
 			return QueryResult{}, fmt.Errorf("failed to get read-only connection: %w", err)

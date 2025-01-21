@@ -20,7 +20,7 @@ type ResponseResult struct {
 	Error string `json:"error,omitempty"`
 
 	// For begin queries
-	TxId string `json:"txId,omitempty"`
+	TxID string `json:"txId,omitempty"`
 
 	// For write queries
 	LastInsertID int64 `json:"lastInsertId,omitempty"`
@@ -40,7 +40,7 @@ type Response struct {
 
 // Query represents a single query within a request.
 type Query struct {
-	TxId   string               `json:"txId"`
+	TxID   string               `json:"txId"`
 	Query  string               `json:"query"`
 	Params []sqlitec.QueryParam `json:"params"`
 }
@@ -76,7 +76,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 		}
 
 		res, err := s.DB.Query(ctx, db.Query{
-			TxId:   q.TxId,
+			TxID:   q.TxID,
 			Query:  q.Query,
 			Params: q.Params,
 		})
@@ -93,7 +93,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 			results = append(results, ResponseResult{
 				Type: "begin",
 				Time: time.Since(thisStart).Seconds(),
-				TxId: res.TxId,
+				TxID: res.TxID,
 			})
 		}
 

@@ -47,8 +47,8 @@ type DB struct {
 	isInitialized     bool
 	readWritePool     *sql.DB
 	readOnlyPool      *sql.DB
-	txId              syncutil.AtomicString
-	txIdLastUsed      syncutil.AtomicTime
+	txID              syncutil.AtomicString
+	txLastUsed        syncutil.AtomicTime
 	txIdleMonitorStop chan any
 	txMu              sync.Mutex
 	writeMu           sync.Mutex
@@ -133,8 +133,8 @@ func NewDB(config Config) (*DB, error) {
 		isInitialized:     true,
 		readWritePool:     readWritePool,
 		readOnlyPool:      readOnlyPool,
-		txId:              *syncutil.NewAtomicString(""),
-		txIdLastUsed:      *syncutil.NewAtomicTime(time.Now()),
+		txID:              *syncutil.NewAtomicString(""),
+		txLastUsed:        *syncutil.NewAtomicTime(time.Now()),
 		txIdleMonitorStop: make(chan any),
 		txMu:              sync.Mutex{},
 		writeMu:           sync.Mutex{},
@@ -201,14 +201,14 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 		case <-db.txIdleMonitorStop:
 			return
 		case <-ticker.C:
-			txId := db.txId.Load()
-			if txId == "" {
+			txID := db.txID.Load()
+			if txID == "" {
 				continue
 			}
-			if time.Since(db.txIdLastUsed.Load()) > timeout {
-				_, _ = db.executeRollbackQuery(context.Background(), txId)
+			if time.Since(db.txLastUsed.Load()) > timeout {
+				_, _ = db.executeRollbackQuery(context.Background(), txID)
 				db.Logger.InfoNs(log.NsDatabase, "transaction rolled back due to idle timeout", log.KV{
-					"txId":    txId,
+					"txID":    txID,
 					"timeout": timeout.String(),
 				})
 			}
@@ -221,9 +221,9 @@ func (db *DB) Close() error {
 	close(db.txIdleMonitorStop)
 	db.closeWg.Wait()
 
-	txId := db.txId.Load()
-	if txId != "" {
-		_, _ = db.executeRollbackQuery(context.Background(), txId)
+	txID := db.txID.Load()
+	if txID != "" {
+		_, _ = db.executeRollbackQuery(context.Background(), txID)
 	}
 
 	if db.readWritePool != nil {
@@ -291,14 +291,14 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 	}
 
 	if query.TxID != "" {
-		currentTxID := db.txId.Load()
+		currentTxID := db.txID.Load()
 		if currentTxID == "" {
 			return QueryResult{}, ErrTxNotFound
 		}
 		if query.TxID != currentTxID {
 			return QueryResult{}, ErrTxNotMatch
 		}
-		db.txIdLastUsed.Store(time.Now())
+		db.txLastUsed.Store(time.Now())
 	}
 
 	switch typeOfQuery {
@@ -343,8 +343,8 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryRes
 	}
 
 	txId := uuid.NewString()
-	db.txId.Store(txId)
-	db.txIdLastUsed.Store(time.Now())
+	db.txID.Store(txId)
+	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncBegins()
 
 	return QueryResult{
@@ -369,8 +369,8 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxID string) (QueryRe
 		return QueryResult{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	db.txId.Store("")
-	db.txIdLastUsed.Store(time.Now())
+	db.txID.Store("")
+	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncCommits()
 	db.txMu.Unlock()
 
@@ -395,8 +395,8 @@ func (db *DB) executeRollbackQuery(ctx context.Context, queryTxID string) (Query
 		return QueryResult{}, fmt.Errorf("failed to rollback transaction: %w", err)
 	}
 
-	db.txId.Store("")
-	db.txIdLastUsed.Store(time.Now())
+	db.txID.Store("")
+	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncRollbacks()
 	db.txMu.Unlock()
 

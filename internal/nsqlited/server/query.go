@@ -95,6 +95,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Time: time.Since(thisStart).Seconds(),
 				TxID: res.TxID,
 			})
+			continue
 		}
 
 		if res.Type == db.QueryTypeCommit {
@@ -102,6 +103,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Type: "commit",
 				Time: time.Since(thisStart).Seconds(),
 			})
+			continue
 		}
 
 		if res.Type == db.QueryTypeRollback {
@@ -109,6 +111,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Type: "rollback",
 				Time: time.Since(thisStart).Seconds(),
 			})
+			continue
 		}
 
 		if res.Type == db.QueryTypeWrite {
@@ -121,6 +124,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Types:        res.Types,
 				Rows:         res.Rows,
 			})
+			continue
 		}
 
 		if res.Type == db.QueryTypeRead {
@@ -131,6 +135,7 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Types:   res.Types,
 				Rows:    res.Rows,
 			})
+			continue
 		}
 
 		results = append(results, ResponseResult{

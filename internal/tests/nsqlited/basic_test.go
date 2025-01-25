@@ -39,16 +39,110 @@ func TestBasic(t *testing.T) {
 		assert.Equal(t, string(body), version.Version)
 	})
 
-	t.Run("Basic query with and without semicolon", func(t *testing.T) {
+	t.Run("Basic operations", func(t *testing.T) {
 		url := createServer(t) + "/query"
 
-		responseSemicolon := sendQuery(t, url, server.Query{
-			Query: "SELECT 1, 2, 3;",
-		})
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT);",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:         "write",
+						LastInsertID: 0,
+						RowsAffected: 0,
+					},
+				},
+			},
+		)
 
-		responseNoSemicolon := sendQuery(t, url, server.Query{
-			Query: "SELECT 1, 2, 3",
-		})
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "INSERT INTO test (name) VALUES ('John');",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:         "write",
+						LastInsertID: 1,
+						RowsAffected: 1,
+					},
+				},
+			},
+		)
+
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "INSERT INTO test (name) VALUES ('Jane') RETURNING *;",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:    "write",
+						Columns: []string{"id", "name"},
+						Types:   []string{"INTEGER", "TEXT"},
+						Rows:    [][]any{{float64(2), "Jane"}},
+					},
+				},
+			},
+		)
+
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "SELECT * FROM test;",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:    "read",
+						Columns: []string{"id", "name"},
+						Types:   []string{"INTEGER", "TEXT"},
+						Rows:    [][]any{{float64(1), "John"}, {float64(2), "Jane"}},
+					},
+				},
+			},
+		)
+
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "DELETE FROM test;",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:         "write",
+						LastInsertID: 2,
+						RowsAffected: 2,
+					},
+				},
+			},
+		)
+
+		assertQuery(
+			t, url,
+			server.Query{
+				Query: "SELECT * FROM test;",
+			},
+			server.Response{
+				Results: []server.ResponseResult{
+					{
+						Type:    "read",
+						Columns: []string{"id", "name"},
+						Types:   []string{"INTEGER", "TEXT"},
+					},
+				},
+			},
+		)
+	})
+
+	t.Run("Query with and without semicolon", func(t *testing.T) {
+		url := createServer(t) + "/query"
 
 		expected := server.Response{
 			Results: []server.ResponseResult{
@@ -61,7 +155,12 @@ func TestBasic(t *testing.T) {
 			},
 		}
 
-		assert.Equal(t, responseSemicolon, expected)
-		assert.Equal(t, responseNoSemicolon, expected)
+		assertQuery(t, url, server.Query{
+			Query: "SELECT 1, 2, 3;",
+		}, expected)
+
+		assertQuery(t, url, server.Query{
+			Query: "SELECT 1, 2, 3",
+		}, expected)
 	})
 }

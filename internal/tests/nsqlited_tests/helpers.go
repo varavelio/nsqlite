@@ -1,4 +1,4 @@
-package tests
+package nsqlited_tests
 
 import (
 	"bytes"

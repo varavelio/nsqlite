@@ -1,4 +1,4 @@
-package tests
+package nsqlited_tests
 
 // We duplicate some types here to check if the types change over time.
 // This is a simple way to ensure that the types are not changed without

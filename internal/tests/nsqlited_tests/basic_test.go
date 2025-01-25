@@ -13,13 +13,13 @@ func TestBasic(t *testing.T) {
 	t.Run("Server healthcheck", func(t *testing.T) {
 		url := createServer(t) + "/health"
 
-		resp, err := http.Get(url)
+		res, err := http.Get(url)
 		assert.NoError(t, err)
-		defer resp.Body.Close()
+		defer res.Body.Close()
 
-		assert.Equal(t, resp.StatusCode, http.StatusOK)
+		assert.Equal(t, res.StatusCode, http.StatusOK)
 
-		body, err := io.ReadAll(resp.Body)
+		body, err := io.ReadAll(res.Body)
 		assert.NoError(t, err)
 		assert.Equal(t, string(body), "OK")
 	})
@@ -161,5 +161,21 @@ func TestBasic(t *testing.T) {
 		assertQuery(t, url, Query{
 			Query: "SELECT 1, 2, 3",
 		}, expected)
+	})
+
+	t.Run("Invalid queries", func(t *testing.T) {
+		url := createServer(t) + "/query"
+
+		queries := []Query{
+			{Query: "SELECT * FROM non_existent_table;"},
+			{Query: "INSERT INTO;"},
+			{Query: "abc"},
+		}
+
+		for _, query := range queries {
+			res := sendQuery(t, url, query)
+			assert.Equal(t, res.Results[0].Type, "error")
+			assert.NotEmpty(t, res.Results[0].Error)
+		}
 	})
 }

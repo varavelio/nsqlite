@@ -1,14 +1,14 @@
 #!/usr/bin/env -S deno run -A
 
 const targets = [
-  { os: "linux", goarch: "amd64", zigarch: "x86_64-linux-gnu" },
-  { os: "linux", goarch: "arm64", zigarch: "aarch64-linux-gnu" },
+  { os: "linux", goarch: "amd64", zigarch: "x86_64-linux-musl" },
+  { os: "linux", goarch: "arm64", zigarch: "aarch64-linux-musl" },
   { os: "windows", goarch: "amd64", zigarch: "x86_64-windows-gnu" },
   { os: "windows", goarch: "arm64", zigarch: "aarch64-windows-gnu" },
   // TODO: Fix macos build error
   // error: unable to find dynamic system library 'resolv' using strategy 'paths_first'. searched paths: none
-  // { os: "darwin", goarch: "amd64", zigarch: "x86_64-macos" },
-  // { os: "darwin", goarch: "arm64", zigarch: "aarch64-macos" },
+  // { os: "darwin", goarch: "amd64", zigarch: "x86_64-macos-none" },
+  // { os: "darwin", goarch: "arm64", zigarch: "aarch64-macos-none" },
 ];
 
 const cmds = [

@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -59,14 +58,14 @@ func MustParse(args []string) Config {
 	if err != nil {
 		log.Fatal(err)
 	}
-	parser.MustParse(args[1:])
+	parser.MustParse(args)
 
 	if !validate.ListenHost(cfg.ListenHost) {
-		log.Fatal("invalid listen address")
+		log.Fatalf("invalid listen address %s", cfg.ListenHost)
 	}
 
 	if !validate.Port(cfg.ListenPort) {
-		log.Fatal("invalid listen port, valid values are 1-65535")
+		log.Fatalf("invalid listen port %s, valid values are 1-65535", cfg.ListenPort)
 	}
 
 	if err := validateTransactionTimeout(cfg.TxIdleTimeout); err != nil {
@@ -79,7 +78,7 @@ func MustParse(args []string) Config {
 // validateTransactionTimeout validates if timeout is greater than zero.
 func validateTransactionTimeout(timeout time.Duration) error {
 	if timeout <= 0 {
-		return errors.New("invalid transaction timeout, must be greater than zero")
+		return fmt.Errorf("invalid transaction timeout %s, must be greater than zero", timeout.String())
 	}
 	return nil
 }

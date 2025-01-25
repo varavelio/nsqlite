@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlited/config"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
@@ -16,11 +14,8 @@ import (
 )
 
 // Run runs the NSQLite server.
-func Run(ctx context.Context) error {
-	conf := config.MustParse(os.Args)
-
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
+func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
+	conf := config.MustParse(args)
 
 	fmt.Println(version.ServerVersion())
 	logger := log.NewLogger(os.Stdout)

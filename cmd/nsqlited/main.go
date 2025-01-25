@@ -3,12 +3,22 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlited"
 )
 
 func main() {
-	if err := nsqlited.Run(context.Background()); err != nil {
+	// skip the first argument, which is the program name
+	args := os.Args[1:]
+
+	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := nsqlited.Run(ctx, stop, args); err != nil {
 		log.Fatal(err)
 	}
 }

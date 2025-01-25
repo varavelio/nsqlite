@@ -481,18 +481,21 @@ func (stmt *Stmt) ColumnDecltype(colIndex int) string {
 }
 
 // ColumnValueType returns the inferred type of the given value.
+// It returns one of the five storage classes of SQLite
+//
+// https://www.sqlite.org/datatype3.html#storage_classes_and_datatypes
 func (stmt *Stmt) ColumnValueType(value any) string {
 	switch value.(type) {
-	case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+	case nil:
+		return "NULL"
+	case bool, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return "INTEGER"
 	case float32, float64:
 		return "REAL"
-	case bool:
-		return "BOOLEAN"
-	case []byte:
-		return "BLOB"
 	case string:
 		return "TEXT"
+	case []byte:
+		return "BLOB"
 	default:
 		return ""
 	}

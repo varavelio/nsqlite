@@ -24,6 +24,28 @@ func (Config) Version() string {
 	return fmt.Sprintf("%s\n", version.ServerVersion())
 }
 
+func (c Config) ToArgs() []string {
+	args := []string{}
+
+	if c.DataDir != "" {
+		args = append(args, "--data-dir", c.DataDir)
+	}
+	if c.AuthToken != "" {
+		args = append(args, "--auth-token", c.AuthToken)
+	}
+	if c.ListenHost != "" {
+		args = append(args, "--listen-host", c.ListenHost)
+	}
+	if c.ListenPort != "" {
+		args = append(args, "--listen-port", c.ListenPort)
+	}
+	if c.TxIdleTimeout != time.Duration(0) {
+		args = append(args, "--tx-idle-timeout", c.TxIdleTimeout.String())
+	}
+
+	return args
+}
+
 // MustParse parses and validates the configuration from the command
 // line arguments. It returns a Config struct or exits the program
 // with an error.

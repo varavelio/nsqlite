@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/server"
 	"github.com/nsqlite/nsqlite/internal/version"
 	"github.com/stretchr/testify/assert"
 )
@@ -44,11 +43,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT);",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:         "write",
 						LastInsertID: 0,
@@ -60,11 +59,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "INSERT INTO test (name) VALUES ('John');",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:         "write",
 						LastInsertID: 1,
@@ -76,11 +75,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "INSERT INTO test (name) VALUES ('Jane') RETURNING *;",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:    "write",
 						Columns: []string{"id", "name"},
@@ -93,11 +92,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "SELECT * FROM test;",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:    "read",
 						Columns: []string{"id", "name"},
@@ -110,11 +109,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "DELETE FROM test;",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:         "write",
 						LastInsertID: 2,
@@ -126,11 +125,11 @@ func TestBasic(t *testing.T) {
 
 		assertQuery(
 			t, url,
-			server.Query{
+			Query{
 				Query: "SELECT * FROM test;",
 			},
-			server.Response{
-				Results: []server.ResponseResult{
+			Response{
+				Results: []ResponseResult{
 					{
 						Type:    "read",
 						Columns: []string{"id", "name"},
@@ -144,8 +143,8 @@ func TestBasic(t *testing.T) {
 	t.Run("Query with and without semicolon", func(t *testing.T) {
 		url := createServer(t) + "/query"
 
-		expected := server.Response{
-			Results: []server.ResponseResult{
+		expected := Response{
+			Results: []ResponseResult{
 				{
 					Type:    "read",
 					Columns: []string{"1", "2", "3"},
@@ -155,11 +154,11 @@ func TestBasic(t *testing.T) {
 			},
 		}
 
-		assertQuery(t, url, server.Query{
+		assertQuery(t, url, Query{
 			Query: "SELECT 1, 2, 3;",
 		}, expected)
 
-		assertQuery(t, url, server.Query{
+		assertQuery(t, url, Query{
 			Query: "SELECT 1, 2, 3",
 		}, expected)
 	})

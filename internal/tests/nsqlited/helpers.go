@@ -13,7 +13,6 @@ import (
 
 	"github.com/nsqlite/nsqlite/internal/nsqlited"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/config"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/server"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 	"github.com/nsqlite/nsqlite/internal/util/netutil"
 	"github.com/stretchr/testify/assert"
@@ -65,10 +64,10 @@ func createServer(t testing.TB, conf ...config.Config) string {
 //
 // This function asserts that the response is successful, should be used
 // to test successful queries.
-func sendQuery(t testing.TB, url string, query server.Query) server.Response {
+func sendQuery(t testing.TB, url string, query Query) Response {
 	t.Helper()
 
-	reqBody, err := json.Marshal([]server.Query{query})
+	reqBody, err := json.Marshal([]Query{query})
 	assert.NoError(t, err)
 
 	resp, err := http.Post(url, "application/json", bytes.NewReader(reqBody))
@@ -77,7 +76,7 @@ func sendQuery(t testing.TB, url string, query server.Query) server.Response {
 
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
-	var resBody server.Response
+	var resBody Response
 	assert.NoError(t, json.NewDecoder(resp.Body).Decode(&resBody))
 
 	resBody.Time = 0
@@ -92,7 +91,7 @@ func sendQuery(t testing.TB, url string, query server.Query) server.Response {
 // is successful and equals the expected response.
 //
 // This function converts all the time fields to 0 to make the results deterministic.
-func assertQuery(t testing.TB, url string, query server.Query, expected server.Response) {
+func assertQuery(t testing.TB, url string, query Query, expected Response) {
 	t.Helper()
 
 	response := sendQuery(t, url, query)

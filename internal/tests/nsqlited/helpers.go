@@ -87,3 +87,14 @@ func sendQuery(t testing.TB, url string, query server.Query) server.Response {
 
 	return resBody
 }
+
+// assertQuery sends a query to a NSQLite server and asserts that the response
+// is successful and equals the expected response.
+//
+// This function converts all the time fields to 0 to make the results deterministic.
+func assertQuery(t testing.TB, url string, query server.Query, expected server.Response) {
+	t.Helper()
+
+	response := sendQuery(t, url, query)
+	assert.Equal(t, response, expected)
+}

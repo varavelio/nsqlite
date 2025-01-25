@@ -3,9 +3,6 @@ package nsqlite
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
 	"github.com/nsqlite/nsqlite/internal/nsqlite/repl"
@@ -14,12 +11,8 @@ import (
 )
 
 // Run runs the NSQLite CLI.
-func Run(ctx context.Context) error {
-	conf := config.MustParse(os.Args)
-
-	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
+func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
+	conf := config.MustParse(args)
 	fmt.Println(version.CLIVersion())
 
 	client, err := nsqlitehttp.NewClient(conf.ConnectionString)

@@ -32,7 +32,7 @@ func MustParse(args []string) Config {
 	if err != nil {
 		log.Fatal(err)
 	}
-	parser.MustParse(args[1:])
+	parser.MustParse(args)
 
 	cfg.ParsedConnStr, err = nsqlitedsn.NewConnStrFromText(cfg.ConnectionString)
 	if err != nil {

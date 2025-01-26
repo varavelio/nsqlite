@@ -26,8 +26,14 @@ type benchmarkResult struct {
 	TotalWrites uint64
 }
 
-func Run(ctx context.Context, stop context.CancelFunc) error {
+func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
 	fmt.Println(version.BenchVersion())
+
+	ciMode := false
+	if len(args) > 0 && args[0] == "--ci" {
+		fmt.Println("CI mode enabled, using default values")
+		ciMode = true
+	}
 
 	tmpDir, err := os.MkdirTemp("", "nsqlitebench_*")
 	if err != nil {
@@ -59,12 +65,13 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 	defer moderncDb.Close()
 
 	drivers := []struct {
-		Name string
-		DB   *sql.DB
+		Name        string
+		UseRoutines bool
+		DB          *sql.DB
 	}{
 		{Name: "mattn/go-sqlite3", DB: mattnDb},
 		{Name: "modernc.org/sqlite", DB: moderncDb},
-		{Name: "nsqlite/nsqlitego", DB: nsqliteDb},
+		{Name: "nsqlite/nsqlitego", UseRoutines: true, DB: nsqliteDb},
 	}
 
 	results := []struct {
@@ -73,7 +80,7 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 	}{}
 
 	for _, driver := range drivers {
-		result, err := runBenchmark(ctx, driver.Name, driver.DB)
+		result, err := runBenchmark(ctx, ciMode, driver.UseRoutines, driver.Name, driver.DB)
 		if err != nil {
 			return fmt.Errorf("error benchmarking %s: %w", driver.Name, err)
 		}
@@ -184,9 +191,9 @@ func printResults(results []benchmarkResult) {
 // runBenchmark executes all benchmarks, and returns results.
 //
 // It recreates the schema before each benchmark.
-func runBenchmark(ctx context.Context, name string, db *sql.DB) ([]benchmarkResult, error) {
+func runBenchmark(ctx context.Context, ciMode bool, useRoutines bool, name string, db *sql.DB) ([]benchmarkResult, error) {
 	fmt.Printf("\n--- Benchmark for %s ---\n", name)
-	config := promptConfig()
+	config := promptConfig(ciMode, useRoutines)
 
 	if !config.execBenchmark {
 		return nil, nil

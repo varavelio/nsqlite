@@ -66,19 +66,28 @@ func promptInt(prompt string) int {
 	}
 }
 
-func promptConfig() benchmarksConfig {
-	line := liner.NewLiner()
-	defer line.Close()
-	line.SetCtrlCAborts(true)
-
-	execBenchmark := promptBool("Execute benchmark? (y/n): ")
-	if !execBenchmark {
-		return benchmarksConfig{}
+func promptConfig(ciMode bool, useRoutines bool) benchmarksConfig {
+	queryGoroutines := 1
+	insertGoroutines := 1
+	if useRoutines {
+		queryGoroutines = 100
+		insertGoroutines = 100
 	}
 
-	queryGoroutines := promptInt("Read goroutines: ")
-	insertGoroutines := promptInt("Write goroutines: ")
-	fmt.Println()
+	if !ciMode {
+		line := liner.NewLiner()
+		defer line.Close()
+		line.SetCtrlCAborts(true)
+
+		execBenchmark := promptBool("Execute benchmark? (y/n): ")
+		if !execBenchmark {
+			return benchmarksConfig{}
+		}
+
+		queryGoroutines = promptInt("Read goroutines: ")
+		insertGoroutines = promptInt("Write goroutines: ")
+		fmt.Println()
+	}
 
 	return benchmarksConfig{
 		execBenchmark: true,

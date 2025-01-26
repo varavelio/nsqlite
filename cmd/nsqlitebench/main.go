@@ -14,11 +14,14 @@ import (
 // system fundamentals to run nsqlitebench.
 
 func main() {
+	// skip the first argument, which is the program name
+	args := os.Args[1:]
+
 	ctx := context.Background()
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := nsqlitebench.Run(ctx, stop); err != nil {
+	if err := nsqlitebench.Run(ctx, stop, args); err != nil {
 		log.Fatal(err)
 	}
 }

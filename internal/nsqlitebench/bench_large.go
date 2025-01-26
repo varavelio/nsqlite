@@ -1,6 +1,7 @@
 package nsqlitebench
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -18,7 +19,7 @@ type benchmarkLargeConfig struct {
 // runBenchmarkLarge inserts X users with Y Bytes of content and then queries
 // all of them in single query.
 func runBenchmarkLarge(
-	db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkLargeConfig
 	start := time.Now()
@@ -43,7 +44,8 @@ func runBenchmarkLarge(
 				<-wgch
 			}()
 
-			res, err := db.Exec(
+			res, err := db.ExecContext(
+				ctx,
 				"INSERT INTO users (created, email, active) VALUES (?, ?, ?)",
 				time.Now().Unix(), email, 1,
 			)
@@ -75,7 +77,8 @@ func runBenchmarkLarge(
 	bar.Finish()
 
 	bar = NewBar("Reading all users", 1)
-	rows, err := db.Query(
+	rows, err := db.QueryContext(
+		ctx,
 		"SELECT id, created, email, active FROM users ORDER BY id",
 	)
 	if err != nil {

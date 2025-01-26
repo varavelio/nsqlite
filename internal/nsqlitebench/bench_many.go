@@ -1,6 +1,7 @@
 package nsqlitebench
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -18,7 +19,7 @@ type benchmarkManyConfig struct {
 // runBenchmarkMany inserts X users in a single transaction and then query all
 // users Y times. This simulates a read-heavy workload.
 func runBenchmarkMany(
-	db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkManyConfig
 	start := time.Now()
@@ -30,7 +31,8 @@ func runBenchmarkMany(
 	}
 	defer func() { _ = tx.Rollback() }()
 
-	stmt, err := tx.Prepare(
+	stmt, err := tx.PrepareContext(
+		ctx,
 		"INSERT INTO users (created, email, active) VALUES (?, ?, ?)",
 	)
 	if err != nil {
@@ -53,7 +55,8 @@ func runBenchmarkMany(
 				wgInsert.Done()
 				<-chInsert
 			}()
-			res, err := stmt.Exec(
+			res, err := stmt.ExecContext(
+				ctx,
 				time.Now().Unix(), fmt.Sprintf("user%d@example.com", idx), 1,
 			)
 			if err != nil {
@@ -101,7 +104,8 @@ func runBenchmarkMany(
 				wgQuery.Done()
 				<-chQuery
 			}()
-			rows, err := db.Query(
+			rows, err := db.QueryContext(
+				ctx,
 				"SELECT id, created, email, active FROM users ORDER BY id",
 			)
 			if err != nil {

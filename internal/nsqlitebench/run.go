@@ -5,14 +5,16 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
+	"strconv"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/nsqlite/nsqlite/internal/nsqlite/styled"
+	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/nsqlite/nsqlite/internal/util/netutil"
 	"github.com/nsqlite/nsqlite/internal/version"
-	"github.com/peterh/liner"
 )
 
 // benchmarkResult stores the outcome of a benchmark.
@@ -23,49 +25,21 @@ type benchmarkResult struct {
 	TotalWrites uint64
 }
 
-// Run executes benchmarks for two SQLite drivers and prints the results.
-func Run(ctx context.Context) error {
+func Run(ctx context.Context, stop context.CancelFunc) error {
 	fmt.Println(version.BenchVersion())
 	fmt.Println()
+	config := promptConfig()
 
 	tmpDir, err := os.MkdirTemp("", "nsqlitebench_*")
 	if err != nil {
-		return err
+		return fmt.Errorf("error creating temporary directory: %w", err)
 	}
 	defer os.RemoveAll(tmpDir)
-	sqliteDBPath := path.Join(tmpDir, "/benchmark.sqlite")
-	fmt.Printf("The temporary SQLite database to be benchmarked will be stored in %s\n", sqliteDBPath)
 
-	nsqliteDSN := "http://localhost:9876"
-	fmt.Printf("The NSQLite server to be benchmarked is %s\n", color.RedString(nsqliteDSN))
-
-	fmt.Println()
-	color.Red("Make sure the NSQLite server is not important, as the benchmark will make changes to the database.")
-	fmt.Println()
-
-	line := liner.NewLiner()
-	defer line.Close()
-	line.SetCtrlCAborts(true)
-
-	for {
-		prompt, err := line.Prompt(`Enter "start" to start the benchmark, or press CTRL+C to exit: `)
-		if err != nil {
-			if err == liner.ErrPromptAborted {
-				fmt.Println("CTRL+C pressed, exiting...")
-				return nil
-			}
-			return err
-		}
-		if prompt == "start" {
-			break
-		}
-	}
-
-	mattnDb, err := createMattnDriver(sqliteDBPath)
+	nsqliteDSN, err := startNsqlited(ctx, tmpDir)
 	if err != nil {
-		return fmt.Errorf("error opening mattn/go-sqlite3 db: %w", err)
+		return fmt.Errorf("error starting nsqlited server: %w", err)
 	}
-	defer mattnDb.Close()
 
 	nsqliteDb, err := createNsqliteDriver(nsqliteDSN)
 	if err != nil {
@@ -73,21 +47,99 @@ func Run(ctx context.Context) error {
 	}
 	defer nsqliteDb.Close()
 
-	fmt.Println("\n--- Benchmarks for mattn/go-sqlite3 ---")
-	mattnResults, err := runBenchmark(mattnDb, getMattnConfig())
+	mattnDb, err := createMattnDriver(tmpDir)
 	if err != nil {
-		return fmt.Errorf("error benchmarking mattn/go-sqlite3: %w", err)
+		return fmt.Errorf("error opening mattn/go-sqlite3 db: %w", err)
 	}
-	printResults(mattnResults)
+	defer mattnDb.Close()
 
-	fmt.Println("\n--- Benchmarks for nsqlite/nsqlitego ---")
-	nsqliteResults, err := runBenchmark(nsqliteDb, getNsqliteConfig())
-	if err != nil {
-		return fmt.Errorf("error benchmarking nsqlite/nsqlitego: %w", err)
+	drivers := []struct {
+		Name string
+		DB   *sql.DB
+	}{
+		{Name: "mattn/go-sqlite3", DB: mattnDb},
+		{Name: "nsqlite/nsqlitego", DB: nsqliteDb},
 	}
-	printResults(nsqliteResults)
 
+	fmt.Print("Starting in ")
+	for i := 3; i > 0; i-- {
+		fmt.Printf("%d..", i)
+		time.Sleep(1 * time.Second)
+	}
+	fmt.Println("Go!")
+
+	results := []struct {
+		Name   string
+		Result []benchmarkResult
+	}{}
+
+	for _, driver := range drivers {
+		result, err := runBenchmark(ctx, driver.Name, driver.DB, config)
+		if err != nil {
+			return fmt.Errorf("error benchmarking %s: %w", driver.Name, err)
+		}
+		results = append(results, struct {
+			Name   string
+			Result []benchmarkResult
+		}{
+			Name:   driver.Name,
+			Result: result,
+		})
+	}
+
+	for _, result := range results {
+		fmt.Printf("\n--- Benchmarks for %s ---\n", result.Name)
+		printResults(result.Result)
+	}
+
+	<-ctx.Done()
 	return nil
+}
+
+// startNsqlited starts the nsqlited server in a background goroutine.
+func startNsqlited(ctx context.Context, tmpDir string) (string, error) {
+	nsqlitePort, err := netutil.GetFreePort()
+	if err != nil {
+		return "", fmt.Errorf("error getting free port: %w", err)
+	}
+	dsn := fmt.Sprintf("http://localhost:%d", nsqlitePort)
+
+	nsqliteDBDir := path.Join(tmpDir, "/nsqlite")
+	if err := os.MkdirAll(nsqliteDBDir, 0755); err != nil {
+		return "", fmt.Errorf("error creating temporary NSQLite database directory: %w", err)
+	}
+
+	errCh := make(chan error, 1)
+
+	go func() {
+		cmd := exec.CommandContext(
+			ctx,
+			"nsqlited",
+			"--listen-port", strconv.Itoa(nsqlitePort),
+			"--data-dir", nsqliteDBDir,
+		)
+		cmd.Stderr = os.Stderr
+
+		err := cmd.Start()
+		if err != nil {
+			errCh <- fmt.Errorf("Error running nsqlited server: %w", err)
+		}
+
+		errCh <- nil
+		_ = cmd.Wait()
+	}()
+
+	if err := <-errCh; err != nil {
+		return "", err
+	}
+
+	err = httputil.WaitForServer(fmt.Sprintf("%s/health", dsn), 10*time.Second)
+	if err != nil {
+		return "", fmt.Errorf("error waiting for nsqlited server: %w", err)
+	}
+
+	fmt.Printf("Temporary NSQLite database directory: %s\n", nsqliteDBDir)
+	return dsn, nil
 }
 
 func printResults(results []benchmarkResult) {
@@ -104,12 +156,14 @@ func printResults(results []benchmarkResult) {
 // runBenchmark executes all benchmarks, and returns results.
 //
 // It recreates the schema before each benchmark.
-func runBenchmark(db *sql.DB, cfg benchmarksConfig) ([]benchmarkResult, error) {
-	if err := recreateSchema(db); err != nil {
+func runBenchmark(ctx context.Context, name string, db *sql.DB, cfg benchmarksConfig) ([]benchmarkResult, error) {
+	fmt.Printf("\n--- Benchmarking %s ---\n", name)
+
+	if err := recreateSchema(ctx, db); err != nil {
 		return nil, err
 	}
 
-	benchs := []func(*sql.DB, benchmarksConfig) (benchmarkResult, error){
+	benchs := []func(context.Context, *sql.DB, benchmarksConfig) (benchmarkResult, error){
 		runBenchmarkSimple,
 		runBenchmarkComplex,
 		runBenchmarkMany,
@@ -119,11 +173,11 @@ func runBenchmark(db *sql.DB, cfg benchmarksConfig) ([]benchmarkResult, error) {
 	var results []benchmarkResult
 
 	for _, bench := range benchs {
-		if err := recreateSchema(db); err != nil {
+		if err := recreateSchema(ctx, db); err != nil {
 			return nil, err
 		}
 
-		res, err := bench(db, cfg)
+		res, err := bench(ctx, db, cfg)
 		if err != nil {
 			return nil, err
 		}

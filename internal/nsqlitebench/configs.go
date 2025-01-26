@@ -1,5 +1,11 @@
 package nsqlitebench
 
+import (
+	"strconv"
+
+	"github.com/peterh/liner"
+)
+
 // benchmarksConfig holds all parameters for each benchmark.
 type benchmarksConfig struct {
 	benchmarkSimpleConfig
@@ -8,9 +14,40 @@ type benchmarksConfig struct {
 	benchmarkLargeConfig
 }
 
-func getMattnConfig() benchmarksConfig {
-	insertGoroutines := 150
-	queryGoroutines := 150
+func promptInt(prompt string, defaultValue int) int {
+	line := liner.NewLiner()
+	defer line.Close()
+	line.SetCtrlCAborts(true)
+
+	for {
+		resp, err := line.Prompt(prompt)
+		if err != nil {
+			continue
+		}
+		if resp == "" {
+			return defaultValue
+		}
+
+		i, err := strconv.Atoi(resp)
+		if err != nil {
+			continue
+		}
+
+		if i > 0 {
+			return i
+		}
+
+		return defaultValue
+	}
+}
+
+func promptConfig() benchmarksConfig {
+	line := liner.NewLiner()
+	defer line.Close()
+	line.SetCtrlCAborts(true)
+
+	queryGoroutines := promptInt("Read goroutines (default 150): ", 150)
+	insertGoroutines := promptInt("Write goroutines (default 150): ", 150)
 
 	return benchmarksConfig{
 		benchmarkSimpleConfig: benchmarkSimpleConfig{
@@ -40,9 +77,4 @@ func getMattnConfig() benchmarksConfig {
 			insertGoroutines: insertGoroutines,
 		},
 	}
-}
-
-func getNsqliteConfig() benchmarksConfig {
-	mattnConfig := getMattnConfig()
-	return mattnConfig
 }

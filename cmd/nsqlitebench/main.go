@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlitebench"
 )
@@ -11,7 +14,11 @@ import (
 // system fundamentals to run nsqlitebench.
 
 func main() {
-	if err := nsqlitebench.Run(context.Background()); err != nil {
+	ctx := context.Background()
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	if err := nsqlitebench.Run(ctx, stop); err != nil {
 		log.Fatal(err)
 	}
 }

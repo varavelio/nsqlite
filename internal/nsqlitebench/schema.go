@@ -1,9 +1,12 @@
 package nsqlitebench
 
-import "database/sql"
+import (
+	"context"
+	"database/sql"
+)
 
 // recreateSchema drops all tables and recreates them.
-func recreateSchema(db *sql.DB) error {
+func recreateSchema(ctx context.Context, db *sql.DB) error {
 	stmts := []string{
 		`PRAGMA foreign_keys = ON`,
 		`PRAGMA journal_mode = WAL`,
@@ -40,7 +43,7 @@ func recreateSchema(db *sql.DB) error {
 	}
 
 	for _, s := range stmts {
-		if _, err := db.Exec(s); err != nil {
+		if _, err := db.ExecContext(ctx, s); err != nil {
 			return err
 		}
 	}

@@ -1,6 +1,7 @@
 package nsqlitebench
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -21,7 +22,7 @@ type benchmarkComplexConfig struct {
 //
 // each goroutine inserts one user with all articles and comments.
 func runBenchmarkComplex(
-	db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkComplexConfig
 	start := time.Now()
@@ -42,7 +43,8 @@ func runBenchmarkComplex(
 				wgU.Done()
 				<-chU
 			}()
-			res, err := db.Exec(
+			res, err := db.ExecContext(
+				ctx,
 				"INSERT INTO users (created, email, active) VALUES (?, ?, ?)",
 				time.Now().Unix(), fmt.Sprintf("user%d@example.com", idx), 1,
 			)
@@ -89,7 +91,8 @@ func runBenchmarkComplex(
 				<-chA
 			}()
 			userID := (idx % conf.insertXUsers) + 1
-			res, err := db.Exec(
+			res, err := db.ExecContext(
+				ctx,
 				"INSERT INTO articles (created, userId, text) VALUES (?, ?, ?)",
 				time.Now().Unix(), userID, fmt.Sprintf("article for user %d", userID),
 			)
@@ -136,7 +139,8 @@ func runBenchmarkComplex(
 				<-chC
 			}()
 			articleID := (idx % totalArticles) + 1
-			res, err := db.Exec(
+			res, err := db.ExecContext(
+				ctx,
 				"INSERT INTO comments (created, articleId, text) VALUES (?, ?, ?)",
 				time.Now().Unix(), articleID, "comment",
 			)
@@ -167,16 +171,18 @@ func runBenchmarkComplex(
 	bar.Finish()
 
 	bar = NewBar("Reading users, articles, and comments", 1)
-	rows, err := db.Query(`
-		SELECT
-		users.id, users.created, users.email, users.active,
-		articles.id, articles.created, articles.userId, articles.text,
-		comments.id, comments.created, comments.articleId, comments.text
-		FROM users
-		LEFT JOIN articles ON articles.userId = users.id
-		LEFT JOIN comments ON comments.articleId = articles.id
-		ORDER BY users.created, articles.created, comments.created
-	`)
+	rows, err := db.QueryContext(
+		ctx,
+		`
+			SELECT
+			users.id, users.created, users.email, users.active,
+			articles.id, articles.created, articles.userId, articles.text,
+			comments.id, comments.created, comments.articleId, comments.text
+			FROM users
+			LEFT JOIN articles ON articles.userId = users.id
+			LEFT JOIN comments ON comments.articleId = articles.id
+			ORDER BY users.created, articles.created, comments.created
+		`)
 	if err != nil {
 		return benchmarkResult{}, fmt.Errorf("error querying: %w", err)
 	}

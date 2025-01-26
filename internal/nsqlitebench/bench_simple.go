@@ -1,6 +1,7 @@
 package nsqlitebench
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"sync"
@@ -20,7 +21,7 @@ type benchmarkSimpleConfig struct {
 //
 // This also reads the users Y times.
 func runBenchmarkSimple(
-	db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkSimpleConfig
 	start := time.Now()
@@ -41,7 +42,8 @@ func runBenchmarkSimple(
 				<-wgch
 			}()
 
-			res, err := db.Exec(
+			res, err := db.ExecContext(
+				ctx,
 				"INSERT INTO users (created, email, active) VALUES (?, ?, ?)",
 				time.Now().Unix(), fmt.Sprintf("user%d@example.com", idx), 1,
 			)
@@ -65,7 +67,8 @@ func runBenchmarkSimple(
 	bar.Finish()
 	bar = NewBar("Reading all users in single query", 1)
 
-	rows, err := db.Query(
+	rows, err := db.QueryContext(
+		ctx,
 		"SELECT id, created, email, active FROM users ORDER BY id",
 	)
 	if err != nil {
@@ -98,7 +101,8 @@ func runBenchmarkSimple(
 				<-wgch
 			}()
 
-			rows, err := db.Query(
+			rows, err := db.QueryContext(
+				ctx,
 				"SELECT id, created, email, active FROM users WHERE id = ?",
 				userID,
 			)

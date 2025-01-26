@@ -7,7 +7,7 @@ import "fmt"
 // Example:
 //
 //	12345 -> "12,345"
-func IntWithCommas[T int | int32 | int64](i T) string {
+func IntWithCommas[T int | int32 | int64 | uint | uint32 | uint64](i T) string {
 	if i < 0 {
 		return "-" + IntWithCommas(-i)
 	}

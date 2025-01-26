@@ -13,7 +13,9 @@ type progressBar struct {
 
 func NewBar(ciMode bool, description string, maxItems int) *progressBar {
 	if ciMode {
-		return &progressBar{}
+		return &progressBar{
+			ciMode: ciMode,
+		}
 	}
 
 	pb := progressbar.Default(int64(maxItems), description)

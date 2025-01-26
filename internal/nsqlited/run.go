@@ -3,7 +3,7 @@ package nsqlited
 import (
 	"context"
 	"fmt"
-	"os"
+	"io"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlited/config"
 	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
@@ -14,11 +14,11 @@ import (
 )
 
 // Run runs the NSQLite server.
-func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
+func Run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []string) error {
 	conf := config.MustParse(args)
 
-	fmt.Println(version.ServerVersion())
-	logger := log.NewLogger(os.Stdout)
+	fmt.Fprintln(stdout, version.ServerVersion())
+	logger := log.NewLogger(stdout)
 	logger.Info("starting NSQLite server", log.KV{
 		"dataDir":       conf.DataDir,
 		"listenHost":    conf.ListenHost,

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -48,7 +49,7 @@ func createServer(t testing.TB, conf ...config.Config) string {
 	t.Cleanup(func() { cancel() })
 
 	go func() {
-		_ = nsqlited.Run(ctx, cancel, pickedConf.ToArgs())
+		_ = nsqlited.Run(ctx, cancel, io.Discard, pickedConf.ToArgs())
 	}()
 
 	baseURL := fmt.Sprintf("http://localhost:%s", pickedConf.ListenPort)

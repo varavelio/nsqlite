@@ -21,7 +21,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := nsqlited.Run(ctx, stop, args); err != nil {
+	if err := nsqlited.Run(ctx, stop, os.Stdout, args); err != nil {
 		log.Fatal(err)
 	}
 }

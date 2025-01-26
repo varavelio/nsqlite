@@ -52,11 +52,18 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 	}
 	defer mattnDb.Close()
 
+	moderncDb, err := createModerncDriver(tmpDir)
+	if err != nil {
+		return fmt.Errorf("error opening modernc.org/sqlite db: %w", err)
+	}
+	defer moderncDb.Close()
+
 	drivers := []struct {
 		Name string
 		DB   *sql.DB
 	}{
 		{Name: "mattn/go-sqlite3", DB: mattnDb},
+		{Name: "modernc.org/sqlite", DB: moderncDb},
 		{Name: "nsqlite/nsqlitego", DB: nsqliteDb},
 	}
 
@@ -84,6 +91,7 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 		printResults(result.Result)
 	}
 
+	fmt.Println()
 	fmt.Println("Press Ctrl+C to exit...")
 	<-ctx.Done()
 	return nil
@@ -177,8 +185,12 @@ func printResults(results []benchmarkResult) {
 //
 // It recreates the schema before each benchmark.
 func runBenchmark(ctx context.Context, name string, db *sql.DB) ([]benchmarkResult, error) {
-	fmt.Printf("\n--- Benchmarking %s ---\n", name)
+	fmt.Printf("\n--- Benchmark for %s ---\n", name)
 	config := promptConfig()
+
+	if !config.execBenchmark {
+		return nil, nil
+	}
 
 	if err := recreateSchema(ctx, db); err != nil {
 		return nil, err

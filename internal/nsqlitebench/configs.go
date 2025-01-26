@@ -3,19 +3,21 @@ package nsqlitebench
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/peterh/liner"
 )
 
 // benchmarksConfig holds all parameters for each benchmark.
 type benchmarksConfig struct {
+	execBenchmark bool
 	benchmarkSimpleConfig
 	benchmarkComplexConfig
 	benchmarkManyConfig
 	benchmarkLargeConfig
 }
 
-func promptInt(prompt string, defaultValue int) int {
+func promptBool(prompt string) bool {
 	line := liner.NewLiner()
 	defer line.Close()
 	line.SetCtrlCAborts(true)
@@ -26,7 +28,31 @@ func promptInt(prompt string, defaultValue int) int {
 			continue
 		}
 		if resp == "" {
-			return defaultValue
+			continue
+		}
+
+		resp = strings.ToLower(resp)
+		if resp == "y" || resp == "yes" || resp == "true" || resp == "1" {
+			return true
+		}
+		if resp == "n" || resp == "no" || resp == "false" || resp == "0" {
+			return false
+		}
+	}
+}
+
+func promptInt(prompt string) int {
+	line := liner.NewLiner()
+	defer line.Close()
+	line.SetCtrlCAborts(true)
+
+	for {
+		resp, err := line.Prompt(prompt)
+		if err != nil {
+			continue
+		}
+		if resp == "" {
+			continue
 		}
 
 		i, err := strconv.Atoi(resp)
@@ -37,8 +63,6 @@ func promptInt(prompt string, defaultValue int) int {
 		if i > 0 {
 			return i
 		}
-
-		return defaultValue
 	}
 }
 
@@ -47,11 +71,18 @@ func promptConfig() benchmarksConfig {
 	defer line.Close()
 	line.SetCtrlCAborts(true)
 
-	queryGoroutines := promptInt("Read goroutines (default 100): ", 100)
-	insertGoroutines := promptInt("Write goroutines (default 100): ", 100)
+	execBenchmark := promptBool("Execute benchmark? (y/n): ")
+	if !execBenchmark {
+		return benchmarksConfig{}
+	}
+
+	queryGoroutines := promptInt("Read goroutines: ")
+	insertGoroutines := promptInt("Write goroutines: ")
 	fmt.Println()
 
 	return benchmarksConfig{
+		execBenchmark: true,
+
 		benchmarkSimpleConfig: benchmarkSimpleConfig{
 			insertXUsers:     100_000,
 			queryYUsers:      200_000,

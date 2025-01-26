@@ -8,9 +8,6 @@ import (
 // recreateSchema drops all tables and recreates them.
 func recreateSchema(ctx context.Context, db *sql.DB) error {
 	stmts := []string{
-		`PRAGMA foreign_keys = ON`,
-		`PRAGMA journal_mode = WAL`,
-
 		`DROP TABLE IF EXISTS comments`,
 		`DROP TABLE IF EXISTS articles`,
 		`DROP TABLE IF EXISTS users`,

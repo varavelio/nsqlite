@@ -15,6 +15,7 @@ import (
 	"github.com/nsqlite/nsqlite/internal/nsqlite/styled"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 	"github.com/nsqlite/nsqlite/internal/util/netutil"
+	"github.com/nsqlite/nsqlite/internal/util/numutil"
 	"github.com/nsqlite/nsqlite/internal/version"
 )
 
@@ -187,7 +188,12 @@ func printResults(results []benchmarkResult) {
 	tw.AppendHeader(table.Row{"Name", "Reads", "Writes", "Duration"})
 
 	for _, r := range results {
-		tw.AppendRow(table.Row{r.Name, r.TotalReads, r.TotalWrites, r.Duration})
+		tw.AppendRow(table.Row{
+			r.Name,
+			numutil.IntWithCommas(r.TotalReads),
+			numutil.IntWithCommas(r.TotalWrites),
+			r.Duration,
+		})
 	}
 
 	fmt.Println(tw.Render())

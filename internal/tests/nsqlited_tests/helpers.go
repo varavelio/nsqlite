@@ -97,3 +97,29 @@ func assertQuery(t testing.TB, url string, query Query, expected Response) {
 	response := sendQuery(t, url, query)
 	assert.Equal(t, response, expected)
 }
+
+// assertQueryStatus sends a query to a NSQLite server and asserts
+// that the response status code is the expected one.
+//
+// If a token is provided, it will be sent as the Authorization header, otherwise
+// the request will be sent without the header.
+func assertQueryStatus(t testing.TB, url string, token string, query Query, expectedStatus int) {
+	t.Helper()
+
+	reqBody, err := json.Marshal([]Query{query})
+	assert.NoError(t, err)
+
+	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
+	assert.NoError(t, err)
+
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	client := &http.Client{}
+	res, err := client.Do(req)
+	assert.NoError(t, err)
+	defer res.Body.Close()
+
+	assert.Equal(t, res.StatusCode, expectedStatus)
+}

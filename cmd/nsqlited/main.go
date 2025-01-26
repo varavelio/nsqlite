@@ -10,6 +10,9 @@ import (
 	"github.com/nsqlite/nsqlite/internal/nsqlited"
 )
 
+// The only responsibility of the main function is to provide the operating
+// system fundamentals to run nsqlited.
+
 func main() {
 	// skip the first argument, which is the program name
 	args := os.Args[1:]

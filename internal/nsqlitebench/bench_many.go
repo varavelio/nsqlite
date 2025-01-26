@@ -19,7 +19,8 @@ type benchmarkManyConfig struct {
 // runBenchmarkMany inserts X users in a single transaction and then query all
 // users Y times. This simulates a read-heavy workload.
 func runBenchmarkMany(
-	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, ciMode bool,
+	db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkManyConfig
 	start := time.Now()
@@ -43,9 +44,7 @@ func runBenchmarkMany(
 	wgInsert := sync.WaitGroup{}
 	chInsert := make(chan bool, conf.insertGoroutines)
 	errInsert := make(chan error, conf.insertXUsers)
-	bar := NewBar(
-		fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers,
-	)
+	bar := NewBar(ciMode, fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers)
 
 	for idx := range conf.insertXUsers {
 		wgInsert.Add(1)
@@ -91,10 +90,7 @@ func runBenchmarkMany(
 	wgQuery := sync.WaitGroup{}
 	chQuery := make(chan bool, conf.queryGoroutines)
 	errQuery := make(chan error, conf.queryUsersYTimes)
-	bar = NewBar(
-		fmt.Sprintf("Querying all users %d times", conf.queryUsersYTimes),
-		conf.queryUsersYTimes,
-	)
+	bar = NewBar(ciMode, fmt.Sprintf("Querying all users %d times", conf.queryUsersYTimes), conf.queryUsersYTimes)
 
 	for i := 0; i < conf.queryUsersYTimes; i++ {
 		wgQuery.Add(1)

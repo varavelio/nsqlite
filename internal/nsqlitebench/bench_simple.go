@@ -21,7 +21,8 @@ type benchmarkSimpleConfig struct {
 //
 // This also reads the users Y times.
 func runBenchmarkSimple(
-	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, ciMode bool,
+	db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkSimpleConfig
 	start := time.Now()
@@ -30,7 +31,7 @@ func runBenchmarkSimple(
 
 	wg := sync.WaitGroup{}
 	wgch := make(chan bool, conf.insertGoroutines)
-	bar := NewBar(fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers)
+	bar := NewBar(ciMode, fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers)
 
 	for idx := range conf.insertXUsers {
 		wg.Add(1)
@@ -65,7 +66,7 @@ func runBenchmarkSimple(
 	close(wgch)
 
 	bar.Finish()
-	bar = NewBar("Reading all users in single query", 1)
+	bar = NewBar(ciMode, "Reading all users in single query", 1)
 
 	rows, err := db.QueryContext(
 		ctx,
@@ -86,7 +87,7 @@ func runBenchmarkSimple(
 	}
 	bar.Finish()
 
-	bar = NewBar(fmt.Sprintf("Reading users %d times", conf.queryYUsers), conf.queryYUsers)
+	bar = NewBar(ciMode, fmt.Sprintf("Reading users %d times", conf.queryYUsers), conf.queryYUsers)
 	wg = sync.WaitGroup{}
 	wgch = make(chan bool, conf.queryGoroutines)
 

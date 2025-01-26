@@ -19,7 +19,8 @@ type benchmarkLargeConfig struct {
 // runBenchmarkLarge inserts X users with Y Bytes of content and then queries
 // all of them in single query.
 func runBenchmarkLarge(
-	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, ciMode bool,
+	db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkLargeConfig
 	start := time.Now()
@@ -29,9 +30,7 @@ func runBenchmarkLarge(
 	wg := sync.WaitGroup{}
 	wgch := make(chan bool, conf.insertGoroutines)
 	errChan := make(chan error, conf.insertXUsers)
-	bar := NewBar(
-		fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers,
-	)
+	bar := NewBar(ciMode, fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers)
 
 	email := strings.Repeat("Y", conf.insertYBytes)
 	for range conf.insertXUsers {
@@ -76,7 +75,7 @@ func runBenchmarkLarge(
 	}
 	bar.Finish()
 
-	bar = NewBar("Reading all users", 1)
+	bar = NewBar(ciMode, "Reading all users", 1)
 	rows, err := db.QueryContext(
 		ctx,
 		"SELECT id, created, email, active FROM users ORDER BY id",

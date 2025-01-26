@@ -22,7 +22,8 @@ type benchmarkComplexConfig struct {
 //
 // each goroutine inserts one user with all articles and comments.
 func runBenchmarkComplex(
-	ctx context.Context, db *sql.DB, fullConfig benchmarksConfig,
+	ctx context.Context, ciMode bool,
+	db *sql.DB, fullConfig benchmarksConfig,
 ) (benchmarkResult, error) {
 	conf := fullConfig.benchmarkComplexConfig
 	start := time.Now()
@@ -31,9 +32,7 @@ func runBenchmarkComplex(
 	wgU := sync.WaitGroup{}
 	chU := make(chan bool, conf.insertGoroutines)
 	errU := make(chan error, conf.insertXUsers)
-	bar := NewBar(
-		fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers,
-	)
+	bar := NewBar(ciMode, fmt.Sprintf("Inserting %d users", conf.insertXUsers), conf.insertXUsers)
 
 	for idx := range conf.insertXUsers {
 		wgU.Add(1)
@@ -78,9 +77,7 @@ func runBenchmarkComplex(
 	wgA := sync.WaitGroup{}
 	chA := make(chan bool, conf.insertGoroutines)
 	errA := make(chan error, totalArticles)
-	bar = NewBar(
-		fmt.Sprintf("Inserting %d articles", totalArticles), totalArticles,
-	)
+	bar = NewBar(ciMode, fmt.Sprintf("Inserting %d articles", totalArticles), totalArticles)
 
 	for idx := range totalArticles {
 		wgA.Add(1)
@@ -126,9 +123,7 @@ func runBenchmarkComplex(
 	wgC := sync.WaitGroup{}
 	chC := make(chan bool, conf.insertGoroutines)
 	errC := make(chan error, totalComments)
-	bar = NewBar(
-		fmt.Sprintf("Inserting %d comments", totalComments), totalComments,
-	)
+	bar = NewBar(ciMode, fmt.Sprintf("Inserting %d comments", totalComments), totalComments)
 
 	for idx := range totalComments {
 		wgC.Add(1)
@@ -170,7 +165,7 @@ func runBenchmarkComplex(
 	}
 	bar.Finish()
 
-	bar = NewBar("Reading users, articles, and comments", 1)
+	bar = NewBar(ciMode, "Reading users, articles, and comments", 1)
 	rows, err := db.QueryContext(
 		ctx,
 		`

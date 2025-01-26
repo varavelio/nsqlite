@@ -214,7 +214,7 @@ func runBenchmark(ctx context.Context, ciMode bool, useRoutines bool, name strin
 		return nil, err
 	}
 
-	benchs := []func(context.Context, *sql.DB, benchmarksConfig) (benchmarkResult, error){
+	benchs := []func(context.Context, bool, *sql.DB, benchmarksConfig) (benchmarkResult, error){
 		runBenchmarkSimple,
 		runBenchmarkComplex,
 		runBenchmarkMany,
@@ -228,7 +228,7 @@ func runBenchmark(ctx context.Context, ciMode bool, useRoutines bool, name strin
 			return nil, err
 		}
 
-		res, err := bench(ctx, db, config)
+		res, err := bench(ctx, ciMode, db, config)
 		if err != nil {
 			return nil, err
 		}

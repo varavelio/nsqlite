@@ -1,4 +1,4 @@
-name: Benchmark
+name: Lint, test, build and benchmark
 on:
   workflow_dispatch:
   pull_request:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   lint-and-test:
-    name: Benchmark the code
+    name: Lint, test, build and benchmark the code
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -19,8 +19,13 @@ jobs:
       - name: Ensure .ssh directory exists even if it's empty
         run: mkdir -p /home/runner/.ssh
 
-      - name: Run Benchmark
+      - name: Run lint, test, build and benchmark
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: task install && nsqlitebench --ci
+          runCmd: |
+            task lint
+            task test
+            task build
+            task install
+            nsqlitebench --ci

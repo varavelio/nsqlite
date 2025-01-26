@@ -123,3 +123,24 @@ func assertQueryStatus(t testing.TB, url string, token string, query Query, expe
 
 	assert.Equal(t, res.StatusCode, expectedStatus)
 }
+
+// getStats sends a GET request to the /stats endpoint and returns the response
+//
+// It sets the StartedAt and Uptime to the zero values to make the results deterministic.
+func getStats(t testing.TB, baseURL string) LoadedStats {
+	t.Helper()
+	url := baseURL + "/stats"
+
+	resp, err := http.Get(url)
+	assert.NoError(t, err)
+	defer resp.Body.Close()
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
+
+	var resBody LoadedStats
+	assert.NoError(t, json.NewDecoder(resp.Body).Decode(&resBody))
+
+	resBody.StartedAt = ""
+	resBody.Uptime = ""
+
+	return resBody
+}

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -27,8 +28,6 @@ type benchmarkResult struct {
 
 func Run(ctx context.Context, stop context.CancelFunc) error {
 	fmt.Println(version.BenchVersion())
-	fmt.Println()
-	config := promptConfig()
 
 	tmpDir, err := os.MkdirTemp("", "nsqlitebench_*")
 	if err != nil {
@@ -61,20 +60,13 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 		{Name: "nsqlite/nsqlitego", DB: nsqliteDb},
 	}
 
-	fmt.Print("Starting in ")
-	for i := 3; i > 0; i-- {
-		fmt.Printf("%d..", i)
-		time.Sleep(1 * time.Second)
-	}
-	fmt.Println("Go!")
-
 	results := []struct {
 		Name   string
 		Result []benchmarkResult
 	}{}
 
 	for _, driver := range drivers {
-		result, err := runBenchmark(ctx, driver.Name, driver.DB, config)
+		result, err := runBenchmark(ctx, driver.Name, driver.DB)
 		if err != nil {
 			return fmt.Errorf("error benchmarking %s: %w", driver.Name, err)
 		}
@@ -92,19 +84,47 @@ func Run(ctx context.Context, stop context.CancelFunc) error {
 		printResults(result.Result)
 	}
 
+	fmt.Println("Press Ctrl+C to exit...")
 	<-ctx.Done()
 	return nil
 }
 
 // startNsqlited starts the nsqlited server in a background goroutine.
 func startNsqlited(ctx context.Context, tmpDir string) (string, error) {
+	binaryName := "nsqlited"
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+
+	pathExists := false
+	if _, err := exec.LookPath(binaryName); err == nil {
+		pathExists = true
+	}
+
+	localExists := false
+	if _, err := os.Stat(binaryName); err == nil {
+		localExists = true
+	}
+
+	if !pathExists && !localExists {
+		return "", fmt.Errorf("the %s binary is not found in the current directory nor in the PATH", binaryName)
+	}
+
+	if localExists {
+		if runtime.GOOS == "windows" {
+			binaryName = ".\\" + binaryName
+		} else {
+			binaryName = "./" + binaryName
+		}
+	}
+
 	nsqlitePort, err := netutil.GetFreePort()
 	if err != nil {
 		return "", fmt.Errorf("error getting free port: %w", err)
 	}
 	dsn := fmt.Sprintf("http://localhost:%d", nsqlitePort)
 
-	nsqliteDBDir := path.Join(tmpDir, "/nsqlite")
+	nsqliteDBDir := filepath.Join(tmpDir, "/nsqlite")
 	if err := os.MkdirAll(nsqliteDBDir, 0755); err != nil {
 		return "", fmt.Errorf("error creating temporary NSQLite database directory: %w", err)
 	}
@@ -114,7 +134,7 @@ func startNsqlited(ctx context.Context, tmpDir string) (string, error) {
 	go func() {
 		cmd := exec.CommandContext(
 			ctx,
-			"nsqlited",
+			binaryName,
 			"--listen-port", strconv.Itoa(nsqlitePort),
 			"--data-dir", nsqliteDBDir,
 		)
@@ -156,8 +176,9 @@ func printResults(results []benchmarkResult) {
 // runBenchmark executes all benchmarks, and returns results.
 //
 // It recreates the schema before each benchmark.
-func runBenchmark(ctx context.Context, name string, db *sql.DB, cfg benchmarksConfig) ([]benchmarkResult, error) {
+func runBenchmark(ctx context.Context, name string, db *sql.DB) ([]benchmarkResult, error) {
 	fmt.Printf("\n--- Benchmarking %s ---\n", name)
+	config := promptConfig()
 
 	if err := recreateSchema(ctx, db); err != nil {
 		return nil, err
@@ -177,7 +198,7 @@ func runBenchmark(ctx context.Context, name string, db *sql.DB, cfg benchmarksCo
 			return nil, err
 		}
 
-		res, err := bench(ctx, db, cfg)
+		res, err := bench(ctx, db, config)
 		if err != nil {
 			return nil, err
 		}

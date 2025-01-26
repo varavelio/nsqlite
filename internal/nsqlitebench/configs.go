@@ -1,6 +1,7 @@
 package nsqlitebench
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/peterh/liner"
@@ -46,8 +47,9 @@ func promptConfig() benchmarksConfig {
 	defer line.Close()
 	line.SetCtrlCAborts(true)
 
-	queryGoroutines := promptInt("Read goroutines (default 150): ", 150)
-	insertGoroutines := promptInt("Write goroutines (default 150): ", 150)
+	queryGoroutines := promptInt("Read goroutines (default 100): ", 100)
+	insertGoroutines := promptInt("Write goroutines (default 100): ", 100)
+	fmt.Println()
 
 	return benchmarksConfig{
 		benchmarkSimpleConfig: benchmarkSimpleConfig{

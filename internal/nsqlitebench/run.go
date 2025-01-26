@@ -98,8 +98,13 @@ func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
 		printResults(result.Result)
 	}
 
-	fmt.Println()
-	fmt.Println("Press Ctrl+C to exit...")
+	if ciMode {
+		stop()
+	} else {
+		fmt.Println()
+		fmt.Println("Press Ctrl+C to exit...")
+	}
+
 	<-ctx.Done()
 	return nil
 }

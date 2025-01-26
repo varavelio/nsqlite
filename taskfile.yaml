@@ -5,7 +5,10 @@ version: "3"
 tasks:
   build:
     desc: Build the distributable binaries for all platforms
-    cmd: chmod +x ./build.ts && ./build.ts
+    cmds:
+      - rm -rf ./dist
+      - chmod +x ./build.ts
+      - ./build.ts
 
   install:
     desc: Build and install binaries locally for development

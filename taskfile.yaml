@@ -44,6 +44,12 @@ tasks:
     desc: Build NSQLite Benchmark locally
     cmd: go build -o ./dist/nsqlitebench ./cmd/nsqlitebench/.
 
+  bombard:
+    desc: Run stress test against NSQLite server
+    cmds:
+      - chmod +x ./bombard.ts
+      - ./bombard.ts
+
   fmt:
     desc: Format the Go, Js and Ts code
     cmds:

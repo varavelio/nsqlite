@@ -48,7 +48,7 @@ tasks:
     desc: Run stress test against NSQLite server
     cmds:
       - chmod +x ./stress.ts
-      - ./stress.ts
+      - ./stress.ts {{.CLI_ARGS}}
 
   fmt:
     desc: Format the Go, Js and Ts code

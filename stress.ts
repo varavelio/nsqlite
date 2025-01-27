@@ -1,5 +1,7 @@
 #!/usr/bin/env -S deno run -A
 
+// @ts-types="npm:@types/prompts@2.4.9"
+import prompts from "npm:prompts@2.4.2";
 import { findFreePorts } from "npm:find-free-ports@3.1.1";
 import boxen from "npm:boxen@8.0.1";
 
@@ -8,6 +10,35 @@ NSQLite Stress Tester
 
 This script will bombard the NSQLite server with a lot of queries to test it's performance.
 `);
+
+const ciMode = Deno.args.length > 0 && Deno.args[0] == "--ci";
+let connections = 250;
+let durationSeconds = 30;
+
+if (!ciMode) {
+  const responses = await prompts([
+    {
+      type: "number",
+      name: "connections",
+      message: "How many HTTP connections to use?",
+      initial: 250,
+    },
+    {
+      type: "number",
+      name: "durationSeconds",
+      message: "How many seconds to run the test?",
+      initial: 30,
+    },
+  ], {
+    onCancel: () => {
+      Deno.exit(0);
+    },
+  });
+
+  connections = responses.connections;
+  durationSeconds = responses.durationSeconds;
+  console.log();
+}
 
 const nsqlited = await spawnNsqlited();
 
@@ -19,22 +50,22 @@ await runQuery({
 
 runBombardier({
   baseUrl: nsqlited.baseUrl,
-  connections: 250,
-  durationSeconds: 30,
+  connections,
+  durationSeconds,
   query: "INSERT INTO users (name, email) VALUES ('test', 'test@example.com');",
 });
 
 runBombardier({
   baseUrl: nsqlited.baseUrl,
-  connections: 250,
-  durationSeconds: 30,
+  connections,
+  durationSeconds,
   query: "SELECT * FROM users LIMIT 1;",
 });
 
 runBombardier({
   baseUrl: nsqlited.baseUrl,
-  connections: 250,
-  durationSeconds: 30,
+  connections,
+  durationSeconds,
   query: "SELECT 1, 2, 3;",
 });
 

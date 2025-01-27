@@ -25,4 +25,4 @@ jobs:
           push: never
           runCmd: |
             task install
-            task stress
+            task stress -- --ci

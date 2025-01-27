@@ -1,4 +1,4 @@
-name: NSQLite server stress test
+name: NSQLite stress test
 on:
   workflow_dispatch:
   pull_request:

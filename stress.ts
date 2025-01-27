@@ -4,10 +4,9 @@ import { findFreePorts } from "npm:find-free-ports@3.1.1";
 import boxen from "npm:boxen@8.0.1";
 
 console.log(`
-NSQLite Bombarder
+NSQLite Stress Tester
 
-This script will bombard the NSQLite server with a lot of queries
-to test it's performance.
+This script will bombard the NSQLite server with a lot of queries to test it's performance.
 `);
 
 const nsqlited = await spawnNsqlited();

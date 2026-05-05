@@ -7,6 +7,7 @@ package sqlitec
 
 // #include "sqlite3.c"
 import "C"
+
 import (
 	"errors"
 	"fmt"
@@ -76,7 +77,11 @@ func (conn *Conn) Close() error {
 	// destructors are called is arbitrary.
 	resCode := C.sqlite3_close_v2(conn.cDB)
 	if resCode != C.SQLITE_OK {
-		return fmt.Errorf("failed to close database: %s: %s", getResCodeStr(resCode), conn.getLastError())
+		return fmt.Errorf(
+			"failed to close database: %s: %s",
+			getResCodeStr(resCode),
+			conn.getLastError(),
+		)
 	}
 	conn.cDB = nil
 
@@ -227,7 +232,11 @@ func (conn *Conn) Prepare(query string) (*Stmt, error) {
 	var cStmt *C.sqlite3_stmt
 	resCode := C.sqlite3_prepare_v2(conn.cDB, cQuery, C.int(-1), &cStmt, nil)
 	if resCode != C.SQLITE_OK {
-		return nil, fmt.Errorf("failed to prepare statement: %s: %s", getResCodeStr(resCode), conn.getLastError())
+		return nil, fmt.Errorf(
+			"failed to prepare statement: %s: %s",
+			getResCodeStr(resCode),
+			conn.getLastError(),
+		)
 	}
 
 	return &Stmt{conn: conn, cStmt: cStmt}, nil
@@ -404,7 +413,12 @@ func (stmt *Stmt) BindBlob(index int, data []byte) error {
 		return stmt.BindNull(index)
 	}
 
-	resCode := C.cust_sqlite3_bind_blob(stmt.cStmt, C.int(index), unsafe.Pointer(&data[0]), C.int(len(data)))
+	resCode := C.cust_sqlite3_bind_blob(
+		stmt.cStmt,
+		C.int(index),
+		unsafe.Pointer(&data[0]),
+		C.int(len(data)),
+	)
 	if resCode != C.SQLITE_OK {
 		return fmt.Errorf("failed to bind blob: %s", getResCodeStr(resCode))
 	}
@@ -615,7 +629,11 @@ func (stmt *Stmt) Finalize() error {
 
 	resCode := C.sqlite3_finalize(stmt.cStmt)
 	if resCode != C.SQLITE_OK {
-		return fmt.Errorf("failed to finalize statement: %s: %s", getResCodeStr(resCode), C.GoString(C.sqlite3_errmsg(stmt.conn.cDB)))
+		return fmt.Errorf(
+			"failed to finalize statement: %s: %s",
+			getResCodeStr(resCode),
+			C.GoString(C.sqlite3_errmsg(stmt.conn.cDB)),
+		)
 	}
 	stmt.cStmt = nil
 

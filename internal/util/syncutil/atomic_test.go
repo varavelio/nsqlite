@@ -73,11 +73,21 @@ func TestAtomic(t *testing.T) {
 	t.Run("NewAtomic_String", func(t *testing.T) {
 		// Test constructor for strings
 		atomic := NewAtomic("initial value")
-		assert.Equal(t, "initial value", atomic.Load(), "Constructor should initialize the string correctly")
+		assert.Equal(
+			t,
+			"initial value",
+			atomic.Load(),
+			"Constructor should initialize the string correctly",
+		)
 
 		// Test updating value
 		atomic.Store("updated value")
-		assert.Equal(t, "updated value", atomic.Load(), "Updated value should match the loaded value")
+		assert.Equal(
+			t,
+			"updated value",
+			atomic.Load(),
+			"Updated value should match the loaded value",
+		)
 	})
 
 	t.Run("NewAtomic_Int", func(t *testing.T) {

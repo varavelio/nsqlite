@@ -23,7 +23,7 @@ func BcryptGenerateHash(password string, cost ...int) (string, error) {
 }
 
 // BcryptCheckHash checks if the given password matches the given bcrypt hash.
-func BcryptCheckHash(password string, hash string) bool {
+func BcryptCheckHash(password, hash string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }

@@ -60,7 +60,10 @@ func TestSQLiteC(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Equal(t, int64(1), res.RowsAffected)
 
-		selRes, err := conn.Query("SELECT flag, num_int, num_float, txt, bytes, nullable FROM test_types", nil)
+		selRes, err := conn.Query(
+			"SELECT flag, num_int, num_float, txt, bytes, nullable FROM test_types",
+			nil,
+		)
 		assert.NoError(t, err)
 		assert.Len(t, selRes.Rows, 1)
 		row := selRes.Rows[0]
@@ -81,7 +84,7 @@ func TestSQLiteC(t *testing.T) {
 		_, err = conn.Query("CREATE TABLE named_test (id INTEGER PRIMARY KEY, value TEXT)", nil)
 		assert.NoError(t, err)
 
-		runTest := func(nameForQuery string, nameForParam string) {
+		runTest := func(nameForQuery, nameForParam string) {
 			value := uuid.NewString()
 
 			_, err = conn.Query(

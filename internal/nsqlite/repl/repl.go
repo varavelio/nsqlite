@@ -110,9 +110,13 @@ func (r *Repl) Start() error {
 					continue
 				}
 
-				cmdQuery(r, `SELECT name FROM pragma_table_info(:table_name)`, []nsqlitehttp.QueryParam{
-					{Name: "table_name", Value: tableName},
-				})
+				cmdQuery(
+					r,
+					`SELECT name FROM pragma_table_info(:table_name)`,
+					[]nsqlitehttp.QueryParam{
+						{Name: "table_name", Value: tableName},
+					},
+				)
 				continue
 			}
 

@@ -100,7 +100,7 @@ func NewDB(config Config) (*DB, error) {
 	if config.DataDir == "" {
 		return nil, errors.New("database directory is required")
 	}
-	if err := os.MkdirAll(config.DataDir, 0755); err != nil {
+	if err := os.MkdirAll(config.DataDir, 0o755); err != nil {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 	if config.TxIdleTimeout <= 0 {
@@ -207,10 +207,14 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 			}
 			if time.Since(db.txLastUsed.Load()) > timeout {
 				_, _ = db.executeRollbackQuery(context.Background(), txID)
-				db.Logger.InfoNs(log.NsDatabase, "transaction rolled back due to idle timeout", log.KV{
-					"txId":    txID,
-					"timeout": timeout.String(),
-				})
+				db.Logger.InfoNs(
+					log.NsDatabase,
+					"transaction rolled back due to idle timeout",
+					log.KV{
+						"txId":    txID,
+						"timeout": timeout.String(),
+					},
+				)
 			}
 		}
 	}

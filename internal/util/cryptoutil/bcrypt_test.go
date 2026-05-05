@@ -34,8 +34,18 @@ func TestBcryptGenerateHash(t *testing.T) {
 		{"SpecialChars", "P@$$w0rd!", nil, false},
 		{"LongPassword", "aVeryLongPasswordThatExceedsNormalLength1234567890", nil, false},
 		{"CustomCost", "password", []int{bcrypt.MinCost}, false},
-		{"InvalidCostTooLow", "password", []int{bcrypt.MinCost - 1}, false},  // Should use default cost
-		{"InvalidCostTooHigh", "password", []int{bcrypt.MaxCost + 1}, false}, // Should use default cost
+		{
+			"InvalidCostTooLow",
+			"password",
+			[]int{bcrypt.MinCost - 1},
+			false,
+		}, // Should use default cost
+		{
+			"InvalidCostTooHigh",
+			"password",
+			[]int{bcrypt.MaxCost + 1},
+			false,
+		}, // Should use default cost
 	}
 
 	for _, tt := range tests {

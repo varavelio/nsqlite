@@ -19,7 +19,18 @@ func cmdStats(r *Repl, statsQty int) {
 	}
 
 	tw := styled.NewTableWriter()
-	tw.AppendHeader(table.Row{"Minute (UTC)", "Reads", "Writes", "Begins", "Commits", "Rollbacks", "Errors", "Requests"})
+	tw.AppendHeader(
+		table.Row{
+			"Minute (UTC)",
+			"Reads",
+			"Writes",
+			"Begins",
+			"Commits",
+			"Rollbacks",
+			"Errors",
+			"Requests",
+		},
+	)
 
 	rows := []table.Row{}
 	for i, stat := range stats.Stats {

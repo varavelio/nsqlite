@@ -104,7 +104,7 @@ func assertQuery(t testing.TB, url string, query Query, expected Response) {
 //
 // If a token is provided, it will be sent as the Authorization header, otherwise
 // the request will be sent without the header.
-func assertQueryStatus(t testing.TB, url string, token string, query Query, expectedStatus int) {
+func assertQueryStatus(t testing.TB, url, token string, query Query, expectedStatus int) {
 	t.Helper()
 
 	reqBody, err := json.Marshal([]Query{query})

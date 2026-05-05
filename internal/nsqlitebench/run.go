@@ -128,7 +128,10 @@ func startNsqlited(ctx context.Context, tmpDir string) (string, error) {
 	}
 
 	if !pathExists && !localExists {
-		return "", fmt.Errorf("the %s binary is not found in the current directory nor in the PATH", binaryName)
+		return "", fmt.Errorf(
+			"the %s binary is not found in the current directory nor in the PATH",
+			binaryName,
+		)
 	}
 
 	if localExists {
@@ -146,7 +149,7 @@ func startNsqlited(ctx context.Context, tmpDir string) (string, error) {
 	dsn := fmt.Sprintf("http://localhost:%d", nsqlitePort)
 
 	nsqliteDBDir := filepath.Join(tmpDir, "/nsqlite")
-	if err := os.MkdirAll(nsqliteDBDir, 0755); err != nil {
+	if err := os.MkdirAll(nsqliteDBDir, 0o755); err != nil {
 		return "", fmt.Errorf("error creating temporary NSQLite database directory: %w", err)
 	}
 
@@ -202,7 +205,12 @@ func printResults(results []benchmarkResult) {
 // runBenchmark executes all benchmarks, and returns results.
 //
 // It recreates the schema before each benchmark.
-func runBenchmark(ctx context.Context, ciMode bool, useRoutines bool, name string, db *sql.DB) ([]benchmarkResult, error) {
+func runBenchmark(
+	ctx context.Context,
+	ciMode, useRoutines bool,
+	name string,
+	db *sql.DB,
+) ([]benchmarkResult, error) {
 	fmt.Printf("\n--- Benchmark for %s ---\n", name)
 	config := promptConfig(ciMode, useRoutines)
 

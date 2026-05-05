@@ -12,10 +12,10 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR" help:"Directory for NSQLite database files" default:"./data"`
-	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN" help:"Authentication token (plaintext or hashed with bcrypt/argon2); leave empty to disable."`
-	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST" help:"Host for the server to listen on" default:"0.0.0.0"`
-	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT" help:"Port for the server to listen on" default:"9876"`
+	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"               help:"Directory for NSQLite database files"                                                                                       default:"./data"`
+	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Authentication token (plaintext or hashed with bcrypt/argon2); leave empty to disable."`
+	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                           default:"0.0.0.0"`
+	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                           default:"9876"`
 	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h" default:"10s"`
 }
 
@@ -78,7 +78,10 @@ func MustParse(args []string) Config {
 // validateTransactionTimeout validates if timeout is greater than zero.
 func validateTransactionTimeout(timeout time.Duration) error {
 	if timeout <= 0 {
-		return fmt.Errorf("invalid transaction timeout %s, must be greater than zero", timeout.String())
+		return fmt.Errorf(
+			"invalid transaction timeout %s, must be greater than zero",
+			timeout.String(),
+		)
 	}
 	return nil
 }

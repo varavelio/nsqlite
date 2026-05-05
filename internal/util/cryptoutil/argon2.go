@@ -13,7 +13,7 @@ func Argon2GenerateHash(password string) (string, error) {
 }
 
 // Argon2CheckHash checks if the given password matches the given argon2 hash.
-func Argon2CheckHash(password string, hash string) bool {
+func Argon2CheckHash(password, hash string) bool {
 	ok, err := argon2.VerifyEncoded([]byte(password), []byte(hash))
 	if err != nil {
 		return false

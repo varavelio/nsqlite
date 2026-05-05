@@ -18,13 +18,32 @@ type dotCmd struct {
 
 func cmdHelpCommands() []dotCmd {
 	cmds := []dotCmd{
-		{name: ".count [table_name]", autocomplete: ".count", help: "Count the number of rows in a table", args: "table_name (required)"},
-		{name: ".columns [table_name]", autocomplete: ".columns", help: "List all columns in a table", args: "table_name (required)"},
-		{name: ".stats [minutes]", autocomplete: ".stats", help: "Shows the server stats of last specified minutes", args: "minutes (optional, default 5)"},
+		{
+			name:         ".count [table_name]",
+			autocomplete: ".count",
+			help:         "Count the number of rows in a table",
+			args:         "table_name (required)",
+		},
+		{
+			name:         ".columns [table_name]",
+			autocomplete: ".columns",
+			help:         "List all columns in a table",
+			args:         "table_name (required)",
+		},
+		{
+			name:         ".stats [minutes]",
+			autocomplete: ".stats",
+			help:         "Shows the server stats of last specified minutes",
+			args:         "minutes (optional, default 5)",
+		},
 
 		{name: ".tables", autocomplete: ".tables", help: "List all tables in the database"},
 		{name: ".indexes", autocomplete: ".indexes", help: "List all indexes in the database"},
-		{name: ".functions", autocomplete: ".functions", help: "List all functions in the database"},
+		{
+			name:         ".functions",
+			autocomplete: ".functions",
+			help:         "List all functions in the database",
+		},
 		{name: ".schema", autocomplete: ".schema", help: "List all schema in the database"},
 		{name: ".clear", autocomplete: ".clear", help: "Clear the terminal screen"},
 		{name: ".help", autocomplete: ".help", help: "Show the help message"},

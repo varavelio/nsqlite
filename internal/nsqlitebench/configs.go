@@ -66,7 +66,7 @@ func promptInt(prompt string) int {
 	}
 }
 
-func promptConfig(ciMode bool, useRoutines bool) benchmarksConfig {
+func promptConfig(ciMode, useRoutines bool) benchmarksConfig {
 	queryGoroutines := 1
 	insertGoroutines := 1
 	if useRoutines {

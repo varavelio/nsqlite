@@ -43,7 +43,7 @@ func (s *Server) queryHandlerAuthMiddleware(
 
 // checkAuthToken checks if the token sent by the client matches the server's
 // defined auth token.
-func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken string, serverToken string) bool {
+func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken, serverToken string) bool {
 	if tokenAlgo == cryptoutil.HashAlgoPlaintext {
 		return clientToken == serverToken
 	}

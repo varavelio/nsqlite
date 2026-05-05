@@ -90,7 +90,11 @@ func runBenchmarkMany(
 	wgQuery := sync.WaitGroup{}
 	chQuery := make(chan bool, conf.queryGoroutines)
 	errQuery := make(chan error, conf.queryUsersYTimes)
-	bar = NewBar(ciMode, fmt.Sprintf("Querying all users %d times", conf.queryUsersYTimes), conf.queryUsersYTimes)
+	bar = NewBar(
+		ciMode,
+		fmt.Sprintf("Querying all users %d times", conf.queryUsersYTimes),
+		conf.queryUsersYTimes,
+	)
 
 	for i := 0; i < conf.queryUsersYTimes; i++ {
 		wgQuery.Add(1)

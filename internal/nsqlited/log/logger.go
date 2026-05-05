@@ -42,7 +42,7 @@ func (l *Logger) Info(msg string, keyVals ...KV) {
 //
 // The namespace is used to differentiate logs from different parts
 // and will be included as the first key-value pair in the log.
-func (l *Logger) InfoNs(namespace string, msg string, keyVals ...KV) {
+func (l *Logger) InfoNs(namespace, msg string, keyVals ...KV) {
 	l.slogger.Info(msg, kvToArgsNs(namespace, keyVals...)...)
 }
 
@@ -60,7 +60,7 @@ func (l *Logger) Debug(msg string, keyVals ...KV) {
 //
 // The namespace is used to differentiate logs from different parts
 // and will be included as the first key-value pair in the log.
-func (l *Logger) DebugNs(namespace string, msg string, keyVals ...KV) {
+func (l *Logger) DebugNs(namespace, msg string, keyVals ...KV) {
 	l.slogger.Debug(msg, kvToArgsNs(namespace, keyVals...)...)
 }
 
@@ -78,7 +78,7 @@ func (l *Logger) Warn(msg string, keyVals ...KV) {
 //
 // The namespace is used to differentiate logs from different parts
 // and will be included as the first key-value pair in the log.
-func (l *Logger) WarnNs(namespace string, msg string, keyVals ...KV) {
+func (l *Logger) WarnNs(namespace, msg string, keyVals ...KV) {
 	l.slogger.Warn(msg, kvToArgsNs(namespace, keyVals...)...)
 }
 
@@ -96,6 +96,6 @@ func (l *Logger) Error(msg string, keyVals ...KV) {
 //
 // The namespace is used to differentiate logs from different parts
 // and will be included as the first key-value pair in the log.
-func (l *Logger) ErrorNs(namespace string, msg string, keyVals ...KV) {
+func (l *Logger) ErrorNs(namespace, msg string, keyVals ...KV) {
 	l.slogger.Error(msg, kvToArgsNs(namespace, keyVals...)...)
 }

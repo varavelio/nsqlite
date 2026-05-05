@@ -2,8 +2,10 @@ package validate
 
 import "github.com/orsinium-labs/enum"
 
-type contentType enum.Member[string]
-type contenttestType enum.Member[string]
+type (
+	contentType     enum.Member[string]
+	contenttestType enum.Member[string]
+)
 
 var (
 	ContentTypePlainText = contentType{Value: "text/plain"}

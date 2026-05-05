@@ -1,49 +1,86 @@
 package version
 
 import (
-	"fmt"
 	"strings"
 
-	"github.com/fatih/color"
+	"github.com/varavelio/tinta"
 )
 
-const Version = "v0.1.0"
+// These variables are set at build time using ldflags.
+var (
+	// Version is the vdl version, set at build time using ldflags. This string does not contain the "v" prefix.
+	Version = "0.0.0-dev"
+	// Commit is the git commit hash, set at build time using ldflags.
+	Commit = "unknown"
+	// Date is the build date, set at build time using ldflags.
+	Date = "unknown"
+)
 
-// asciiArtTpl returns the ASCII art of nsqlited.
-func asciiArtTpl() string {
-	lines := []string{
-		`    _   _______ ____    __    _ __`,
-		`   / | / / ___// __ \  / /   (_) /____`,
-		`  /  |/ /\__ \/ / / / / /   / / __/ _ \`,
-		` / /|  /___/ / /_/ / / /___/ / /_/  __/`,
-		`/_/ |_//____/\___\_\/_____/_/\__/\___/`,
-		`%s ` + Version,
-		`For more information visit https://github.com/varavelio/nsqlite and please leave a star`,
+func init() {
+	Version = strings.TrimSpace(Version)
+	Version = strings.TrimPrefix(Version, "v")
+}
+
+// asciiLogo is used to generate AsciiArt.
+var asciiLogo = []string{
+	`    _   _______ ____    __    _ __     `,
+	`   / | / / ___// __ \  / /   (_) /____ `,
+	`  /  |/ /\__ \/ / / / / /   / / __/ _ \`,
+	` / /|  /___/ / /_/ / / /___/ / /_/  __/`,
+	`/_/ |_//____/\___\_\/_____/_/\__/\___/ `,
+}
+
+// AsciiArt is the ASCII art for the VDL logo, dynamically generated
+// to ensure proper centering and consistent line widths.
+var AsciiArt = func() string {
+	textBold := tinta.Text().White().Bold()
+	textCyan := tinta.Text().Cyan().Bold()
+	textGreen := tinta.Text().Green().Bold()
+	textLink := textCyan.Underline()
+
+	content := strings.Builder{}
+
+	// Write ascii logo
+	for _, line := range asciiLogo {
+		content.WriteString(textCyan.String(line))
+		content.WriteString("\n")
 	}
 
-	lines[0] = color.RGB(214, 245, 245).Sprint(lines[0])
-	lines[1] = color.RGB(214, 245, 245).Sprint(lines[1])
-	lines[2] = color.RGB(173, 235, 235).Sprint(lines[2])
-	lines[3] = color.RGB(132, 225, 225).Sprint(lines[3])
-	lines[4] = color.RGB(97, 214, 214).Sprint(lines[4])
-	lines[5] = color.RGB(97, 214, 214).Sprint(lines[5])
-	lines[6] = color.RGB(97, 214, 214).Sprint(lines[6])
+	// Write version
+	content.WriteString(textGreen.String("v" + Version))
+	content.WriteString("\n\n")
 
-	asciiArt := strings.Join(lines, "\n")
-	return asciiArt
-}
+	// Write basic info
+	content.WriteString(
+		textBold.String(
+			"Star the repo: ",
+		) + textLink.String(
+			"https://github.com/varavelio/nsqlite",
+		),
+	)
+	content.WriteString("\n")
+	content.WriteString(textBold.String("Show usage:    ") + "nsqlite --help")
+	content.WriteString("\n")
+	content.WriteString(textBold.String("Show version:  ") + "nsqlite --version")
 
-// ServerVersion returns the server version of nsqlited.
-func ServerVersion() string {
-	return fmt.Sprintf(asciiArtTpl(), "Server")
-}
+	mainBoxBuilder := tinta.Box().
+		Border(tinta.BorderHeavy).
+		Blue().
+		Bold().
+		PaddingX(1)
 
-// CLIVersion returns the CLI version of nsqlite.
-func CLIVersion() string {
-	return fmt.Sprintf(asciiArtTpl(), "CLI")
-}
+	// Center logo and version
+	for i := range len(asciiLogo) + 1 {
+		mainBoxBuilder = mainBoxBuilder.CenterLine(i)
+	}
 
-// BenchVersion returns the benchmark version of nsqlite.
-func BenchVersion() string {
-	return fmt.Sprintf(asciiArtTpl(), "Benchmark")
-}
+	mainBox := mainBoxBuilder.String(content.String())
+
+	shadowBox := tinta.Box().
+		Border(tinta.BorderDouble).
+		Blue().
+		PaddingX(1).
+		String(content.String())
+
+	return tinta.Canvas().Add(shadowBox, 1, 1).Add(mainBox, 0, 0).String()
+}()

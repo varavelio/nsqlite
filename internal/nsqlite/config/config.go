@@ -20,7 +20,7 @@ type Config struct {
 }
 
 func (Config) Version() string {
-	return fmt.Sprintf("%s\n", version.ServerVersion())
+	return fmt.Sprintf("%s\n", version.AsciiArt)
 }
 
 func (c Config) ToArgs() []string {

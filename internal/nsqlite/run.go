@@ -17,7 +17,7 @@ import (
 func Run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []string) error {
 	conf := config.MustParse(args)
 
-	fmt.Fprintln(stdout, version.ServerVersion())
+	fmt.Fprintln(stdout, version.AsciiArt)
 	logger := log.NewLogger(stdout)
 	logger.Info("starting NSQLite server", log.KV{
 		"dataDir":       conf.DataDir,

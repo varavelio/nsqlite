@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nsqlite/nsqlite/internal/util/cryptoutil"
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/util/cryptoutil"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
 // queryHandlerAuthMiddleware is a middleware that checks the Authorization

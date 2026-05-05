@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/alexflint/go-arg"
-	"github.com/nsqlite/nsqlite/internal/validate"
-	"github.com/nsqlite/nsqlite/internal/version"
+	"github.com/varavelio/nsqlite/internal/validate"
+	"github.com/varavelio/nsqlite/internal/version"
 )
 
 // Config represents the configuration for nsqlited.

@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/server"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/stats"
-	"github.com/nsqlite/nsqlite/internal/version"
+	"github.com/varavelio/nsqlite/internal/nsqlite/config"
+	"github.com/varavelio/nsqlite/internal/nsqlite/db"
+	"github.com/varavelio/nsqlite/internal/nsqlite/log"
+	"github.com/varavelio/nsqlite/internal/nsqlite/server"
+	"github.com/varavelio/nsqlite/internal/nsqlite/stats"
+	"github.com/varavelio/nsqlite/internal/version"
 )
 
 // Run runs the NSQLite server.

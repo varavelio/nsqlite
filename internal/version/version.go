@@ -18,7 +18,7 @@ func asciiArtTpl() string {
 		` / /|  /___/ / /_/ / / /___/ / /_/  __/`,
 		`/_/ |_//____/\___\_\/_____/_/\__/\___/`,
 		`%s ` + Version,
-		`For more information visit https://github.com/nsqlite/nsqlite and please leave a star`,
+		`For more information visit https://github.com/varavelio/nsqlite and please leave a star`,
 	}
 
 	lines[0] = color.RGB(214, 245, 245).Sprint(lines[0])

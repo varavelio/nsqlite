@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
 func (s *Server) statsHandler(w http.ResponseWriter, r *http.Request) error {

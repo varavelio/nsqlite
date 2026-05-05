@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/stats"
-	"github.com/nsqlite/nsqlite/internal/util/cryptoutil"
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/nsqlite/db"
+	"github.com/varavelio/nsqlite/internal/nsqlite/log"
+	"github.com/varavelio/nsqlite/internal/nsqlite/stats"
+	"github.com/varavelio/nsqlite/internal/util/cryptoutil"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
 // Config represents the configuration for a NSQLite server.

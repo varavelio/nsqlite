@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/varavelio/nsqlite/internal/nsqlite/config"
 )
 
 func TestAuth(t *testing.T) {

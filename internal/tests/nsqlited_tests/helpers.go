@@ -12,11 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
-	"github.com/nsqlite/nsqlite/internal/util/netutil"
 	"github.com/stretchr/testify/assert"
+	"github.com/varavelio/nsqlite/internal/nsqlite"
+	"github.com/varavelio/nsqlite/internal/nsqlite/config"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/util/netutil"
 )
 
 // createServer creates a new NSQLite server and returns the

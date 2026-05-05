@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/sqlitec"
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/nsqlite/db"
+	"github.com/varavelio/nsqlite/internal/nsqlite/log"
+	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitec"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
 // ResponseResult represents the structure of a query result.

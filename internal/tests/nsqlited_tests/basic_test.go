@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nsqlite/nsqlite/internal/version"
 	"github.com/stretchr/testify/assert"
+	"github.com/varavelio/nsqlite/internal/version"
 )
 
 func TestBasic(t *testing.T) {

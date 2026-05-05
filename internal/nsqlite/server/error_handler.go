@@ -4,8 +4,8 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
-	"github.com/nsqlite/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/nsqlite/log"
+	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
 func (s *Server) errorHandler(

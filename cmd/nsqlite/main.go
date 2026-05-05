@@ -7,7 +7,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlite"
+	"github.com/varavelio/nsqlite/internal/nsqlite"
 )
 
 // The only responsibility of the main function is to provide the operating

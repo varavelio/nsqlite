@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 )
 

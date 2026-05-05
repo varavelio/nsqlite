@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/log"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/sqlitec"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/sqlitec"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 )
 

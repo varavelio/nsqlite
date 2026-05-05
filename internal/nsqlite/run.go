@@ -3,33 +3,71 @@ package nsqlite
 import (
 	"context"
 	"fmt"
+	"io"
 
 	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
-	"github.com/nsqlite/nsqlite/internal/nsqlite/repl"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/server"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/stats"
 	"github.com/nsqlite/nsqlite/internal/version"
-	"github.com/nsqlite/nsqlitego/nsqlitehttp"
 )
 
-// Run runs the NSQLite CLI.
-func Run(ctx context.Context, stop context.CancelFunc, args []string) error {
+// Run runs the NSQLite server.
+func Run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []string) error {
 	conf := config.MustParse(args)
-	fmt.Println(version.CLIVersion())
 
-	client, err := nsqlitehttp.NewClient(conf.ConnectionString)
+	fmt.Fprintln(stdout, version.ServerVersion())
+	logger := log.NewLogger(stdout)
+	logger.Info("starting NSQLite server", log.KV{
+		"dataDir":       conf.DataDir,
+		"listenHost":    conf.ListenHost,
+		"listenPort":    conf.ListenPort,
+		"txIdleTimeout": conf.TxIdleTimeout.String(),
+	})
+
+	dbStats := stats.NewDBStats()
+	defer dbStats.Close()
+
+	dbInstance, err := db.NewDB(db.Config{
+		Logger:        logger,
+		DBStats:       dbStats,
+		DataDir:       conf.DataDir,
+		TxIdleTimeout: conf.TxIdleTimeout,
+	})
 	if err != nil {
-		return err
+		return fmt.Errorf("error starting database: %w", err)
 	}
+	defer func() {
+		if err := dbInstance.Close(); err != nil {
+			logger.Error("error closing database:", log.KV{"error": err})
+		}
+	}()
 
-	rp := repl.NewRepl(ctx, stop, conf, client)
-	defer rp.Shutdown()
+	serv, err := server.NewServer(server.Config{
+		Logger:     logger,
+		DBStats:    dbStats,
+		DB:         dbInstance,
+		AuthToken:  conf.AuthToken,
+		ListenHost: conf.ListenHost,
+		ListenPort: conf.ListenPort,
+	})
+	if err != nil {
+		return fmt.Errorf("error creating server: %w", err)
+	}
+	defer func() {
+		if err := serv.Stop(); err != nil {
+			logger.Error("error stopping server:", log.KV{"error": err})
+		}
+	}()
 	go func() {
-		if err := rp.Start(); err != nil {
-			fmt.Println(err)
+		if err := serv.Start(); err != nil {
+			logger.Error("server stopped with error:", log.KV{"error": err})
 			stop()
 		}
 	}()
 
 	<-ctx.Done()
-	fmt.Printf("\nGoodbye!\n\n")
+	logger.Info("goodbye! gracefully shutting down NSQLite server")
 	return nil
 }

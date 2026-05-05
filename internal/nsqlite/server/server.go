@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/db"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/log"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/stats"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/db"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/log"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/stats"
 	"github.com/nsqlite/nsqlite/internal/util/cryptoutil"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 )

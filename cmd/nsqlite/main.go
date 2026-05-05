@@ -11,7 +11,7 @@ import (
 )
 
 // The only responsibility of the main function is to provide the operating
-// system fundamentals to run nsqlite.
+// system fundamentals to run nsqlited.
 
 func main() {
 	// skip the first argument, which is the program name
@@ -21,7 +21,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	if err := nsqlite.Run(ctx, stop, args); err != nil {
+	if err := nsqlite.Run(ctx, stop, os.Stdout, args); err != nil {
 		log.Fatal(err)
 	}
 }

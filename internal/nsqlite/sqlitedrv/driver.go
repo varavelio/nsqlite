@@ -11,7 +11,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/sqlitec"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/sqlitec"
 )
 
 var (

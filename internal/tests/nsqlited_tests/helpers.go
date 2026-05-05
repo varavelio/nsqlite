@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited"
-	"github.com/nsqlite/nsqlite/internal/nsqlited/config"
+	"github.com/nsqlite/nsqlite/internal/nsqlite"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
 	"github.com/nsqlite/nsqlite/internal/util/httputil"
 	"github.com/nsqlite/nsqlite/internal/util/netutil"
 	"github.com/stretchr/testify/assert"
@@ -49,7 +49,7 @@ func createServer(t testing.TB, conf ...config.Config) string {
 	t.Cleanup(func() { cancel() })
 
 	go func() {
-		_ = nsqlited.Run(ctx, cancel, io.Discard, pickedConf.ToArgs())
+		_ = nsqlite.Run(ctx, cancel, io.Discard, pickedConf.ToArgs())
 	}()
 
 	baseURL := fmt.Sprintf("http://localhost:%s", pickedConf.ListenPort)

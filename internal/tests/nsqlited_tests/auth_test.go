@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/nsqlite/nsqlite/internal/nsqlited/config"
+	"github.com/nsqlite/nsqlite/internal/nsqlite/config"
 	"github.com/stretchr/testify/assert"
 )
 

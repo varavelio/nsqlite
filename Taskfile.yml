@@ -2,6 +2,19 @@
 
 version: "3"
 
+vars:
+  VERSION:
+    sh: git describe --tags --abbrev=0 2>/dev/null || echo "dev"
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  DATE:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  LDFLAGS: >-
+    -s -w
+    -X github.com/varavelio/nsqlite/internal/version.Version={{.VERSION}}
+    -X github.com/varavelio/nsqlite/internal/version.Commit={{.COMMIT}}
+    -X github.com/varavelio/nsqlite/internal/version.Date={{.DATE}}
+
 tasks:
   ci:
     desc: Run all CI checks
@@ -18,14 +31,12 @@ tasks:
       - go mod download
 
   build:
-    desc: Build the project
-    cmds:
-      - echo "Building the project..."
+    desc: Build the binary for the current platform
+    cmd: CGO_ENABLED=1 go build -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
 
   run:
     desc: Run the project (blocking)
-    cmds:
-      - echo "Running the project..."
+    cmd: ./dist/nsqlite
 
   format:
     desc: Format all code

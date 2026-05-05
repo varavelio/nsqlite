@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=https://taskfile.dev/schema.json
+
+version: "3"
+
+tasks:
+  ci:
+    desc: Run all CI checks
+    cmds:
+      - task: deps
+      - task: format
+      - task: lint
+      - task: test
+      - task: build
+
+  deps:
+    desc: Install all dependencies
+    cmds:
+      - go mod download
+
+  build:
+    desc: Build the project
+    cmds:
+      - echo "Building the project..."
+
+  run:
+    desc: Run the project (blocking)
+    cmds:
+      - echo "Running the project..."
+
+  format:
+    desc: Format all code
+    cmds:
+      - dprint fmt --config ./dprint.json --log-level warn
+      - golangci-lint fmt ./...
+
+  lint:
+    desc: Lint all code
+    cmds:
+      - dprint check --config ./dprint.json --log-level warn
+      - golangci-lint run ./...
+
+  test:
+    desc: Test all code
+    cmds:
+      - go test ./...

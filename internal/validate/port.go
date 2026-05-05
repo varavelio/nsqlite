@@ -5,10 +5,11 @@ import (
 	"strconv"
 )
 
+var portRe = regexp.MustCompile(`^\d{1,5}$`)
+
 // Port validates if port is a valid port number.
 func Port(port string) bool {
-	re := regexp.MustCompile(`^\d{1,5}$`)
-	if !re.MatchString(port) {
+	if !portRe.MatchString(port) {
 		return false
 	}
 

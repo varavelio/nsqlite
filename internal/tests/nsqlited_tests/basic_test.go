@@ -1,6 +1,7 @@
 package nsqlited_tests
 
 import (
+	"context"
 	"io"
 	"net/http"
 	"testing"
@@ -13,9 +14,11 @@ func TestBasic(t *testing.T) {
 	t.Run("Server healthcheck", func(t *testing.T) {
 		url := createServer(t) + "/health"
 
-		res, err := http.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		assert.NoError(t, err)
-		defer res.Body.Close()
+		res, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer func() { _ = res.Body.Close() }()
 
 		assert.Equal(t, res.StatusCode, http.StatusOK)
 
@@ -27,9 +30,11 @@ func TestBasic(t *testing.T) {
 	t.Run("Server version", func(t *testing.T) {
 		url := createServer(t) + "/version"
 
-		resp, err := http.Get(url)
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		assert.NoError(t, err)
-		defer resp.Body.Close()
+		resp, err := http.DefaultClient.Do(req)
+		assert.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
 
 		assert.Equal(t, resp.StatusCode, http.StatusOK)
 

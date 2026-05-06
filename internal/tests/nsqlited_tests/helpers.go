@@ -36,7 +36,7 @@ func createServer(t testing.TB, conf ...config.Config) string {
 	if err != nil {
 		t.Fatalf("failed to create temporary directory: %v", err)
 	}
-	t.Cleanup(func() { os.RemoveAll(tmpDir) })
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	pickedConf := config.Config{}
 	if len(conf) > 0 {
@@ -71,9 +71,17 @@ func sendQuery(t testing.TB, url string, query Query) Response {
 	reqBody, err := json.Marshal([]Query{query})
 	assert.NoError(t, err)
 
-	resp, err := http.Post(url, "application/json", bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		http.MethodPost,
+		url,
+		bytes.NewReader(reqBody),
+	)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
 
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
@@ -110,7 +118,12 @@ func assertQueryStatus(t testing.TB, url, token string, query Query, expectedSta
 	reqBody, err := json.Marshal([]Query{query})
 	assert.NoError(t, err)
 
-	req, err := http.NewRequest("POST", url, bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(
+		context.Background(),
+		"POST",
+		url,
+		bytes.NewReader(reqBody),
+	)
 	assert.NoError(t, err)
 
 	if token != "" {
@@ -120,7 +133,7 @@ func assertQueryStatus(t testing.TB, url, token string, query Query, expectedSta
 	client := &http.Client{}
 	res, err := client.Do(req)
 	assert.NoError(t, err)
-	defer res.Body.Close()
+	defer func() { _ = res.Body.Close() }()
 
 	assert.Equal(t, res.StatusCode, expectedStatus)
 }
@@ -132,9 +145,11 @@ func getStats(t testing.TB, baseURL string) LoadedStats {
 	t.Helper()
 	url := baseURL + "/stats"
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 	assert.NoError(t, err)
-	defer resp.Body.Close()
+	resp, err := http.DefaultClient.Do(req)
+	assert.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
 	assert.Equal(t, resp.StatusCode, http.StatusOK)
 
 	var resBody LoadedStats

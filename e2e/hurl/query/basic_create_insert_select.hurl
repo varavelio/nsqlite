@@ -1,7 +1,6 @@
 POST {{host}}/query
 Authorization: Bearer {{rw_token}}
 Content-Type: application/json
-```json
 [
   {
     "query": "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);"
@@ -13,7 +12,7 @@ Content-Type: application/json
     "query": "SELECT id, name FROM users;"
   }
 ]
-```
+
 HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "write"

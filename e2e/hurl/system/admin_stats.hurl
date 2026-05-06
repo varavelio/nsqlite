@@ -1,5 +1,6 @@
 GET {{host}}/stats
 Authorization: Bearer {{admin_token}}
+
 HTTP 200
 [Asserts]
 header "content-type" contains "application/json"

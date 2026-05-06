@@ -58,7 +58,7 @@ func Open(filePath string) (*Conn, error) {
 	if resCode != C.SQLITE_OK {
 		errMsg := (&Conn{cDB: db}).getLastError()
 		_ = C.sqlite3_close(db)
-		return nil, fmt.Errorf("failed to open database: %s: %s", getResCodeStr(resCode), errMsg)
+		return nil, fmt.Errorf("failed to open database: %s: %w", getResCodeStr(resCode), errMsg)
 	}
 
 	return &Conn{cDB: db}, nil
@@ -78,7 +78,7 @@ func (conn *Conn) Close() error {
 	resCode := C.sqlite3_close_v2(conn.cDB)
 	if resCode != C.SQLITE_OK {
 		return fmt.Errorf(
-			"failed to close database: %s: %s",
+			"failed to close database: %s: %w",
 			getResCodeStr(resCode),
 			conn.getLastError(),
 		)
@@ -178,7 +178,7 @@ func (conn *Conn) Query(query string, parameters []QueryParam) (*QueryResult, er
 		types = make([]string, columnCount)
 		rows = make([][]any, 0)
 
-		for i := 0; i < columnCount; i++ {
+		for i := range columnCount {
 			columns[i] = stmt.ColumnName(i)
 			types[i] = stmt.ColumnDecltype(i)
 		}
@@ -196,7 +196,7 @@ func (conn *Conn) Query(query string, parameters []QueryParam) (*QueryResult, er
 			}
 
 			row := make([]any, columnCount)
-			for i := 0; i < columnCount; i++ {
+			for i := range columnCount {
 				col, err := stmt.ColumnDynamic(i)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get column value: %w", err)
@@ -233,7 +233,7 @@ func (conn *Conn) Prepare(query string) (*Stmt, error) {
 	resCode := C.sqlite3_prepare_v2(conn.cDB, cQuery, C.int(-1), &cStmt, nil)
 	if resCode != C.SQLITE_OK {
 		return nil, fmt.Errorf(
-			"failed to prepare statement: %s: %s",
+			"failed to prepare statement: %s: %w",
 			getResCodeStr(resCode),
 			conn.getLastError(),
 		)
@@ -480,7 +480,7 @@ func (stmt *Stmt) ColumnNames() []string {
 	}
 
 	names := make([]string, count)
-	for i := 0; i < count; i++ {
+	for i := range count {
 		names[i] = stmt.ColumnName(i)
 	}
 

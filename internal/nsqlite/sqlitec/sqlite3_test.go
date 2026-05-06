@@ -19,7 +19,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("CreateTable", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)", nil)
 		assert.NoError(t, err)
@@ -28,7 +28,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("InsertMultipleTypes", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query(`
 			CREATE TABLE test_types (
@@ -79,7 +79,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("InsertNamedParameter", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE named_test (id INTEGER PRIMARY KEY, value TEXT)", nil)
 		assert.NoError(t, err)
@@ -123,7 +123,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("MultipleRows", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE multi (id INTEGER PRIMARY KEY, val TEXT)", nil)
 		assert.NoError(t, err)
@@ -142,7 +142,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("UpdateAndRowsAffected", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE upd (id INTEGER PRIMARY KEY, val TEXT)", nil)
 		assert.NoError(t, err)
@@ -157,7 +157,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("DeleteAndRowsAffectedZero", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE del (id INTEGER PRIMARY KEY, val TEXT)", nil)
 		assert.NoError(t, err)
@@ -172,7 +172,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("StepNoColumnCount", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		res, err := conn.Query("CREATE TABLE step_test (id INTEGER PRIMARY KEY)", nil)
 		assert.NoError(t, err)
@@ -183,7 +183,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("ReadOnlyCheck", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE test (id INTEGER PRIMARY KEY, val TEXT)", nil)
 		assert.NoError(t, err)
@@ -202,7 +202,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("FinalizeError", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		// Simulate a nil stmt to check that it doesn't crash
 		stmt := &Stmt{}
@@ -213,7 +213,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("LargeBlob", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		_, err = conn.Query("CREATE TABLE blobtest (id INTEGER PRIMARY KEY, data BLOB)", nil)
 		assert.NoError(t, err)
@@ -236,7 +236,7 @@ func TestSQLiteC(t *testing.T) {
 	t.Run("Transactions", func(t *testing.T) {
 		conn, err := Open(":memory:")
 		assert.NoError(t, err)
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		recreateTable := func() {
 			_, err = conn.Query("DROP TABLE IF EXISTS test", nil)

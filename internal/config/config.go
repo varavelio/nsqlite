@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/alexflint/go-arg"
@@ -12,11 +13,13 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"               help:"Directory for NSQLite database files"                                                                                       default:"./data"`
-	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Authentication token (plaintext or hashed with bcrypt/argon2); leave empty to disable."`
-	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                           default:"0.0.0.0"`
-	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                           default:"9876"`
-	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h" default:"10s"`
+	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Admin authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for full access."`
+	AuthTokenRW   string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"     help:"Read/write authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
+	AuthTokenRO   string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"     help:"Read-only authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for query read access only."`
+	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"               help:"Directory for NSQLite database files"                                                                                        default:"./data"`
+	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
+	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                            default:"9876"`
+	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
 }
 
 func (Config) Version() string {
@@ -26,11 +29,17 @@ func (Config) Version() string {
 func (c Config) ToArgs() []string {
 	args := []string{}
 
-	if c.DataDir != "" {
-		args = append(args, "--data-dir", c.DataDir)
-	}
 	if c.AuthToken != "" {
 		args = append(args, "--auth-token", c.AuthToken)
+	}
+	if c.AuthTokenRW != "" {
+		args = append(args, "--auth-token-rw", c.AuthTokenRW)
+	}
+	if c.AuthTokenRO != "" {
+		args = append(args, "--auth-token-ro", c.AuthTokenRO)
+	}
+	if c.DataDir != "" {
+		args = append(args, "--data-dir", c.DataDir)
 	}
 	if c.ListenHost != "" {
 		args = append(args, "--listen-host", c.ListenHost)
@@ -45,10 +54,8 @@ func (c Config) ToArgs() []string {
 	return args
 }
 
-// MustParse parses and validates the configuration from the command
-// line arguments. It returns a Config struct or exits the program
-// with an error.
-func MustParse(args []string) Config {
+// Parse parses and validates the configuration from the command line arguments.
+func Parse(args []string) (Config, error) {
 	cfg := Config{}
 
 	parser, err := arg.NewParser(
@@ -56,22 +63,42 @@ func MustParse(args []string) Config {
 		&cfg,
 	)
 	if err != nil {
-		log.Fatal(err)
+		return Config{}, err
 	}
-	parser.MustParse(args)
+	if err := parser.Parse(args); err != nil {
+		return Config{}, err
+	}
 
 	if !validate.ListenHost(cfg.ListenHost) {
-		log.Fatalf("invalid listen address %s", cfg.ListenHost)
+		return Config{}, fmt.Errorf("invalid listen address %s", cfg.ListenHost)
 	}
 
 	if !validate.Port(cfg.ListenPort) {
-		log.Fatalf("invalid listen port %s, valid values are 1-65535", cfg.ListenPort)
+		return Config{}, fmt.Errorf(
+			"invalid listen port %s, valid values are 1-65535",
+			cfg.ListenPort,
+		)
 	}
 
 	if err := validateTransactionTimeout(cfg.TxIdleTimeout); err != nil {
-		log.Fatal(err)
+		return Config{}, err
 	}
 
+	if err := cfg.validateAuthTokens(); err != nil {
+		return Config{}, err
+	}
+
+	return cfg, nil
+}
+
+// MustParse parses and validates the configuration from the command
+// line arguments. It returns a Config struct or exits the program
+// with an error.
+func MustParse(args []string) Config {
+	cfg, err := Parse(args)
+	if err != nil {
+		log.Fatal(err)
+	}
 	return cfg
 }
 
@@ -84,4 +111,44 @@ func validateTransactionTimeout(timeout time.Duration) error {
 		)
 	}
 	return nil
+}
+
+// AuthTokens returns the configured admin authentication tokens.
+func (c Config) AuthTokens() []string {
+	return splitAuthTokens(c.AuthToken)
+}
+
+// ReadWriteAuthTokens returns the configured read/write authentication tokens.
+func (c Config) ReadWriteAuthTokens() []string {
+	return splitAuthTokens(c.AuthTokenRW)
+}
+
+// ReadOnlyAuthTokens returns the configured read-only authentication tokens.
+func (c Config) ReadOnlyAuthTokens() []string {
+	return splitAuthTokens(c.AuthTokenRO)
+}
+
+func (c Config) validateAuthTokens() error {
+	totalTokens := len(c.AuthTokens()) + len(c.ReadWriteAuthTokens()) + len(c.ReadOnlyAuthTokens())
+	if totalTokens == 0 {
+		return fmt.Errorf("at least one authentication token must be configured")
+	}
+	return nil
+}
+
+func splitAuthTokens(value string) []string {
+	parts := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == '\r'
+	})
+
+	tokens := make([]string, 0, len(parts))
+	for _, part := range parts {
+		token := strings.TrimSpace(part)
+		if token == "" {
+			continue
+		}
+		tokens = append(tokens, token)
+	}
+
+	return tokens
 }

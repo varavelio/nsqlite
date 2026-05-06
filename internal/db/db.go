@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/orsinium-labs/enum"
 	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/sqlite"
 	"github.com/varavelio/nsqlite/internal/sqlitedrv"
@@ -63,15 +62,15 @@ type Query struct {
 }
 
 // queryType represents the type of a given SQLite query.
-type queryType enum.Member[string]
+type queryType string
 
-var (
-	QueryTypeUnknown  = queryType{Value: "unknown"}
-	QueryTypeRead     = queryType{Value: "read"}
-	QueryTypeWrite    = queryType{Value: "write"}
-	QueryTypeBegin    = queryType{Value: "begin"}
-	QueryTypeCommit   = queryType{Value: "commit"}
-	QueryTypeRollback = queryType{Value: "rollback"}
+const (
+	QueryTypeUnknown  queryType = "unknown"
+	QueryTypeRead     queryType = "read"
+	QueryTypeWrite    queryType = "write"
+	QueryTypeBegin    queryType = "begin"
+	QueryTypeCommit   queryType = "commit"
+	QueryTypeRollback queryType = "rollback"
 )
 
 // QueryResult represents the result of a query.
@@ -312,7 +311,7 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return db.executeWriteQuery(ctx, query)
 	}
 
-	return QueryResult{}, fmt.Errorf("unknown query type: %s", typeOfQuery.Value)
+	return QueryResult{}, fmt.Errorf("unknown query type: %s", typeOfQuery)
 }
 
 // executeBeginQuery executes a begin query using the read-write connection.

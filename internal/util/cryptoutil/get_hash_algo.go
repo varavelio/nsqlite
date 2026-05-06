@@ -1,17 +1,13 @@
 package cryptoutil
 
-import (
-	"strings"
+import "strings"
 
-	"github.com/orsinium-labs/enum"
-)
+type HashAlgo string
 
-type HashAlgo enum.Member[string]
-
-var (
-	HashAlgoPlaintext = HashAlgo{Value: "plaintext"}
-	HashAlgoArgon2ID  = HashAlgo{Value: "argon2id"}
-	HashAlgoBcrypt    = HashAlgo{Value: "bcrypt"}
+const (
+	HashAlgoPlaintext HashAlgo = "plaintext"
+	HashAlgoArgon2ID  HashAlgo = "argon2id"
+	HashAlgoBcrypt    HashAlgo = "bcrypt"
 )
 
 // GetHashAlgo returns the hash algorithm used for the given token.

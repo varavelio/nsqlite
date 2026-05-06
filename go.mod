@@ -6,7 +6,6 @@ require (
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexflint/go-arg v1.5.1
 	github.com/google/uuid v1.6.0
-	github.com/orsinium-labs/enum v1.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/varavelio/tinta v0.2.0
 	golang.org/x/crypto v0.32.0

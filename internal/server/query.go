@@ -153,13 +153,13 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 		results = append(results, ResponseResult{
 			Type:  "error",
 			Time:  time.Since(thisStart).Seconds(),
-			Error: "Unknown query response type: " + res.Type.Value,
+			Error: "Unknown query response type: " + string(res.Type),
 		})
 		s.Logger.Error(ctx, "unknown query response type",
 			"query", q.Query,
 			"params", q.Params,
 			"txId", q.TxID,
-			"type", res.Type.Value,
+			"type", string(res.Type),
 		)
 	}
 

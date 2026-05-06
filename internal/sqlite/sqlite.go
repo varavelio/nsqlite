@@ -1,4 +1,4 @@
-// Package sqlitec provides a lightweight wrapper for the SQLite C library.
+// Package sqlite provides a lightweight wrapper for the SQLite C library.
 // It allows direct interaction with SQLite's low-level API.
 //
 //   - https://www.sqlite.org/cintro.html

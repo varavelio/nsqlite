@@ -39,7 +39,7 @@ type Stat struct {
 // LoadStats loads all internal stats into a LoadedStats struct.
 func (db *DBStats) LoadStats() LoadedStats {
 	var (
-		allStats          []Stat = []Stat{}
+		allStats          = []Stat{}
 		totalReads        int64
 		totalWrites       int64
 		totalBegins       int64

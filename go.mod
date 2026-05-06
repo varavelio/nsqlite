@@ -1,6 +1,6 @@
 module github.com/varavelio/nsqlite
 
-go 1.23.5
+go 1.26
 
 require (
 	github.com/alexflint/go-arg v1.5.1

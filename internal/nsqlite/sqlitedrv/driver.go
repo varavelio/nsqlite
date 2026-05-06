@@ -22,10 +22,10 @@ var (
 	_ driver.Connector       = (*Connector)(nil)
 )
 
-// Driver implements the database/sql/driver interface
+// Driver implements the database/sql/driver interface.
 type Driver struct{}
 
-// Open creates a new connection to the SQLite database
+// Open creates a new connection to the SQLite database.
 func (driver *Driver) Open(dsn string) (driver.Conn, error) {
 	connector := NewConnector(dsn)
 	return connector.Connect(context.Background())
@@ -34,20 +34,20 @@ func (driver *Driver) Open(dsn string) (driver.Conn, error) {
 type connectorOption func(*Connector)
 
 // WithPostConnectQueries sets a slice of queries to be executed after a
-// connection is established
+// connection is established.
 func WithPostConnectQueries(queries []string) connectorOption {
 	return func(connector *Connector) {
 		connector.postConnectQueries = queries
 	}
 }
 
-// Connector implements the database/sql/driver.Connector interface
+// Connector implements the database/sql/driver.Connector interface.
 type Connector struct {
 	dsn                string
 	postConnectQueries []string
 }
 
-// NewConnector creates a new connector to the SQLite database
+// NewConnector creates a new connector to the SQLite database.
 func NewConnector(dsn string, options ...connectorOption) driver.Connector {
 	connector := &Connector{
 		dsn: dsn,
@@ -60,22 +60,22 @@ func NewConnector(dsn string, options ...connectorOption) driver.Connector {
 	return connector
 }
 
-// Connect creates a new connection to the SQLite database
+// Connect creates a new connection to the SQLite database.
 func (connector *Connector) Connect(_ context.Context) (driver.Conn, error) {
 	return newConn(connector.dsn, connector.postConnectQueries)
 }
 
-// Driver returns the driver
+// Driver returns the driver.
 func (connector *Connector) Driver() driver.Driver {
 	return &Driver{}
 }
 
-// Conn implements the database/sql/driver.Conn interface
+// Conn implements the database/sql/driver.Conn interface.
 type Conn struct {
 	conn *sqlitec.Conn
 }
 
-// newConn creates a new connection to the SQLite database
+// newConn creates a new connection to the SQLite database.
 func newConn(dsn string, postConnectQueries []string) (driver.Conn, error) {
 	conn, err := sqlitec.Open(dsn)
 	if err != nil {
@@ -93,12 +93,12 @@ func newConn(dsn string, postConnectQueries []string) (driver.Conn, error) {
 	}, nil
 }
 
-// RawConn returns the underlying SQLite C API connection
+// RawConn returns the underlying SQLite C API connection.
 func (conn *Conn) RawConn() *sqlitec.Conn {
 	return conn.conn
 }
 
-// Close closes the connection to the SQLite database
+// Close closes the connection to the SQLite database.
 func (conn *Conn) Close() error {
 	if err := conn.conn.Close(); err != nil {
 		return fmt.Errorf("failed to close connection: %w", err)
@@ -106,24 +106,24 @@ func (conn *Conn) Close() error {
 	return nil
 }
 
-// Prepare is no-op
+// Prepare is no-op.
 func (conn *Conn) Prepare(query string) (driver.Stmt, error) {
 	return nil, nil
 }
 
-// Begin is no-op
+// Begin is no-op.
 func (conn *Conn) Begin() (driver.Tx, error) {
 	return nil, nil
 }
 
 // TODO: Correctly implement the SessionResetter and Validator interfaces
 
-// ResetSession is no-op
+// ResetSession is no-op.
 func (conn *Conn) ResetSession(_ context.Context) error {
 	return nil
 }
 
-// IsValid is no-op
+// IsValid is no-op.
 func (conn *Conn) IsValid() bool {
 	return true
 }

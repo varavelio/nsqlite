@@ -1,7 +1,7 @@
 #ifndef NSQLITE_C_WRAPPER
 #define NSQLITE_C_WRAPPER
 
-#include "sqlite3-v3.48.0.h"
+#include "sqlite3.h"
 #include <stdlib.h>
 
 // Here we define some C functions that are needed to access some of the

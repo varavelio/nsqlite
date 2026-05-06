@@ -5,7 +5,7 @@
 //   - https://www.sqlite.org/c3ref/intro.html
 package sqlitec
 
-// #include "sqlite3.c"
+// #include "sqlite.c"
 import "C"
 
 import (

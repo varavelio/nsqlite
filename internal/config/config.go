@@ -22,10 +22,12 @@ type Config struct {
 	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
 }
 
+// Version returns the CLI version banner.
 func (Config) Version() string {
 	return fmt.Sprintf("%s\n", version.AsciiArt)
 }
 
+// ToArgs converts the config into CLI arguments.
 func (c Config) ToArgs() []string {
 	args := []string{}
 
@@ -84,10 +86,6 @@ func Parse(args []string) (Config, error) {
 		return Config{}, err
 	}
 
-	if err := cfg.validateAuthTokens(); err != nil {
-		return Config{}, err
-	}
-
 	return cfg, nil
 }
 
@@ -128,18 +126,13 @@ func (c Config) ReadOnlyAuthTokens() []string {
 	return splitAuthTokens(c.AuthTokenRO)
 }
 
-func (c Config) validateAuthTokens() error {
-	totalTokens := len(c.AuthTokens()) + len(c.ReadWriteAuthTokens()) + len(c.ReadOnlyAuthTokens())
-	if totalTokens == 0 {
-		return fmt.Errorf("at least one authentication token must be configured")
-	}
-	return nil
-}
-
+// splitAuthTokens splits a comma-separated token list and trims each token.
 func splitAuthTokens(value string) []string {
-	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ',' || r == '\n' || r == '\r'
-	})
+	if value == "" {
+		return nil
+	}
+
+	parts := strings.Split(value, ",")
 
 	tokens := make([]string, 0, len(parts))
 	for _, part := range parts {

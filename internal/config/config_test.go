@@ -10,10 +10,12 @@ import (
 )
 
 func TestParse(t *testing.T) {
-	t.Run("fails when no auth tokens are configured", func(t *testing.T) {
-		_, err := Parse([]string{"--data-dir", t.TempDir()})
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "at least one authentication token")
+	t.Run("allows running without auth tokens", func(t *testing.T) {
+		cfg, err := Parse([]string{"--data-dir", t.TempDir()})
+		require.NoError(t, err)
+		assert.Empty(t, cfg.AuthTokens())
+		assert.Empty(t, cfg.ReadWriteAuthTokens())
+		assert.Empty(t, cfg.ReadOnlyAuthTokens())
 	})
 
 	t.Run("parses multiple tokens per role", func(t *testing.T) {
@@ -38,6 +40,48 @@ func TestParse(t *testing.T) {
 		require.NoError(t, err)
 
 		assert.Equal(t, []string{"admin-1", "admin-2"}, cfg.AuthTokens())
+	})
+}
+
+func TestSplitAuthTokens(t *testing.T) {
+	t.Run("returns nil for empty input", func(t *testing.T) {
+		assert.Nil(t, splitAuthTokens(""))
+	})
+
+	t.Run("splits tokens only on commas", func(t *testing.T) {
+		assert.Equal(t, []string{"admin", "rw", "ro"}, splitAuthTokens("admin,rw,ro"))
+	})
+
+	t.Run("trims whitespace around each token", func(t *testing.T) {
+		assert.Equal(t, []string{"admin", "rw", "ro"}, splitAuthTokens(" admin , rw , ro "))
+	})
+
+	t.Run("preserves spaces inside tokens", func(t *testing.T) {
+		assert.Equal(
+			t,
+			[]string{"admin token", "rw token"},
+			splitAuthTokens("admin token,rw token"),
+		)
+	})
+
+	t.Run("does not split on spaces", func(t *testing.T) {
+		assert.Equal(t, []string{"admin rw ro"}, splitAuthTokens("admin rw ro"))
+	})
+
+	t.Run("does not split on tabs", func(t *testing.T) {
+		assert.Equal(t, []string{"admin\trw"}, splitAuthTokens("admin\trw"))
+	})
+
+	t.Run("does not split on newlines", func(t *testing.T) {
+		assert.Equal(t, []string{"admin\nrw"}, splitAuthTokens("admin\nrw"))
+	})
+
+	t.Run("ignores empty entries created by commas", func(t *testing.T) {
+		assert.Equal(t, []string{"admin", "rw"}, splitAuthTokens(",admin,,rw,"))
+	})
+
+	t.Run("trims tabs and newlines only at token edges", func(t *testing.T) {
+		assert.Equal(t, []string{"admin", "rw"}, splitAuthTokens("\nadmin\t,\trw\n"))
 	})
 }
 

@@ -1,10 +1,4 @@
-# Zig temporary build files
-*.o
-*.a
-*.so
-*.dylib
-*.dll
-*.lib
-*.def
-*.exp
-*.lib
+# All .c and .h files except the NSQLITE_C_WRAPPER
+*.c
+*.h
+!sqlite3.c

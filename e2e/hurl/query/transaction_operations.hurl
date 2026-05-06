@@ -73,6 +73,7 @@ HTTP 200
 jsonpath "$.results[0].type" == "read"
 jsonpath "$.results[0].rows[0][0]" == 0
 
+
 # ── Scenario 2: BEGIN → INSERT valid → INSERT duplicate PK → COMMIT ────
 # The valid INSERT persists and COMMIT succeeds after the constraint error.
 
@@ -118,6 +119,7 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "error"
+jsonpath "$.results[0].error" contains "constraint"
 
 POST {{host}}/query
 Authorization: Bearer {{rw_token}}
@@ -148,6 +150,7 @@ jsonpath "$.results[0].type" == "read"
 jsonpath "$.results[0].rows[0][0]" == 10
 jsonpath "$.results[0].rows[0][1]" == "valid"
 jsonpath "$.results[0].rows" count == 1
+
 
 # ── Scenario 3: BEGIN → INSERT valid → INSERT syntax error → COMMIT ────
 # A syntax error in a write does NOT prevent the COMMIT of valid operations.
@@ -194,6 +197,7 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "error"
+jsonpath "$.results[0].error" contains "syntax"
 
 POST {{host}}/query
 Authorization: Bearer {{rw_token}}

@@ -14,6 +14,7 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "error"
+jsonpath "$.results[0].error" contains "no such table"
 jsonpath "$.results[1].type" == "read"
 jsonpath "$.results[1].rows[0][0]" == 100
 
@@ -38,6 +39,7 @@ HTTP 200
 jsonpath "$.results[0].type" == "read"
 jsonpath "$.results[0].rows[0][0]" == 1
 jsonpath "$.results[1].type" == "error"
+jsonpath "$.results[1].error" contains "no such table"
 jsonpath "$.results[2].type" == "read"
 jsonpath "$.results[2].rows[0][0]" == 2
 
@@ -67,8 +69,10 @@ HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "read"
 jsonpath "$.results[1].type" == "error"
+jsonpath "$.results[1].error" contains "no such table"
 jsonpath "$.results[2].type" == "read"
 jsonpath "$.results[3].type" == "error"
+jsonpath "$.results[3].error" contains "no such table"
 jsonpath "$.results[4].type" == "read"
 jsonpath "$.results[4].rows[0][0]" == 30
 
@@ -115,6 +119,7 @@ HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "write"
 jsonpath "$.results[1].type" == "error"
+jsonpath "$.results[1].error" contains "already exists"
 jsonpath "$.results[2].type" == "write"
 jsonpath "$.results[3].type" == "read"
 jsonpath "$.results[3].rows[0][0]" == 1

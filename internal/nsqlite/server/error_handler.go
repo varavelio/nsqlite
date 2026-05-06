@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -15,10 +16,10 @@ func (s *Server) errorHandler(
 	errorURL := r.URL.String()
 	errorId := uuid.NewString()
 
-	switch err := err.(type) {
-	case httputil.JSONError:
-		statusText := http.StatusText(err.HTTPStatus)
-		safeMessage := err.SafeMessage
+	var jsonErr httputil.JSONError
+	if errors.As(err, &jsonErr) {
+		statusText := http.StatusText(jsonErr.HTTPStatus)
+		safeMessage := jsonErr.SafeMessage
 		if safeMessage == "" {
 			safeMessage = statusText
 		}
@@ -26,20 +27,20 @@ func (s *Server) errorHandler(
 		s.Logger.ErrorNs(
 			log.NsServer, "error while handling request", log.KV{
 				"id":      errorId,
-				"status":  err.HTTPStatus,
-				"error":   err.Error(),
+				"status":  jsonErr.HTTPStatus,
+				"error":   jsonErr.Error(),
 				"message": safeMessage,
 				"url":     errorURL,
 				"ip":      ip,
 			},
 		)
 
-		_ = httputil.WriteJSON(w, err.HTTPStatus, map[string]any{
+		_ = httputil.WriteJSON(w, jsonErr.HTTPStatus, map[string]any{
 			"id":      errorId,
 			"error":   statusText,
 			"message": safeMessage,
 		})
-	default:
+	} else {
 		s.Logger.ErrorNs(
 			log.NsServer, "unknown error while handling request", log.KV{
 				"id":    errorId,

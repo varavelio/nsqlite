@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 
+	"github.com/google/uuid"
 	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/stats"
@@ -32,9 +34,11 @@ type Config struct {
 // Server is the server for NSQLite.
 type Server struct {
 	Config
-	authTokenAlgo cryptoutil.HashAlgo
-	isInitialized bool
-	server        http.Server
+	authTokenAlgo  cryptoutil.HashAlgo
+	authTokenCache sync.Map
+	authTokenSalt  string
+	isInitialized  bool
+	server         http.Server
 }
 
 // NewServer creates a new NSQLite server.
@@ -47,10 +51,12 @@ func NewServer(config Config) (*Server, error) {
 	}
 
 	s := Server{
-		Config:        config,
-		authTokenAlgo: cryptoutil.GetHashAlgo(config.AuthToken),
-		isInitialized: true,
-		server:        http.Server{},
+		Config:         config,
+		authTokenAlgo:  cryptoutil.GetHashAlgo(config.AuthToken),
+		authTokenCache: sync.Map{},
+		authTokenSalt:  uuid.NewString(),
+		isInitialized:  true,
+		server:         http.Server{},
 	}
 	return &s, nil
 }

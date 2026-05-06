@@ -1,6 +1,7 @@
 package server
 
 import (
+	"crypto/sha256"
 	"errors"
 	"net/http"
 	"strings"
@@ -33,12 +34,35 @@ func (s *Server) queryHandlerAuthMiddleware(
 			return unauthorized()
 		}
 
-		if checkAuthToken(s.authTokenAlgo, clientAuthToken, s.AuthToken) {
+		if s.checkAuthWithCache(clientAuthToken) {
 			return next(w, r)
 		}
 
 		return unauthorized()
 	}
+}
+
+// checkAuthWithCache checks the client token against the in-memory cache
+// first. On a cache hit it returns immediately; otherwise it runs the
+// full checkAuthToken (Bcrypt/Argon2/plaintext) and caches the result on
+// success.
+func (s *Server) checkAuthWithCache(clientToken string) bool {
+	if clientToken == "" {
+		return false
+	}
+
+	hash := sha256.Sum256([]byte(s.authTokenSalt + clientToken))
+
+	if _, ok := s.authTokenCache.Load(hash); ok {
+		return true
+	}
+
+	if !checkAuthToken(s.authTokenAlgo, clientToken, s.AuthToken) {
+		return false
+	}
+
+	s.authTokenCache.Store(hash, struct{}{})
+	return true
 }
 
 // checkAuthToken checks if the token sent by the client matches the server's

@@ -305,7 +305,7 @@ func (s roleTokenSet) multiTokenClientValues() []string {
 }
 
 func (s roleTokenSet) multiTokenServerConfigValue() string {
-	return strings.Join([]string{s.plainClient, s.bcryptHash, s.argon2Hash}, ",")
+	return strings.Join([]string{s.plainClient, s.bcryptHash, s.argon2Hash}, " ")
 }
 
 func postJSONWithAuthorization(

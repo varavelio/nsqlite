@@ -32,7 +32,7 @@ func TestMultipleAdminTokensSupportPlaintextAndBcrypt(t *testing.T) {
 	t.Parallel()
 
 	server := harness.StartServer(t, harness.ServerConfig{
-		AuthToken: "admin-plain,$2a$12$ydeSiOAMb4LSMfPwfiyjnemIE5iVSKIk9bNbCFcCWx75IWnhutGvG",
+		AuthToken: "admin-plain $2a$12$ydeSiOAMb4LSMfPwfiyjnemIE5iVSKIk9bNbCFcCWx75IWnhutGvG",
 	})
 
 	for _, token := range []string{"admin-plain", "some-auth-token"} {
@@ -46,7 +46,7 @@ func TestMultipleAdminTokensSupportPlaintextAndBcrypt(t *testing.T) {
 func TestReadWriteTokenCanReadAndWrite(t *testing.T) {
 	t.Parallel()
 
-	server := harness.StartServer(t, harness.ServerConfig{AuthTokenRW: "rw-plain,rw-plain-2"})
+	server := harness.StartServer(t, harness.ServerConfig{AuthTokenRW: "rw-plain rw-plain-2"})
 
 	for _, token := range []string{"rw-plain", "rw-plain-2"} {
 		t.Run(token, func(t *testing.T) {

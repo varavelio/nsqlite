@@ -135,6 +135,83 @@ func TestQueryEndpointReturnsHelpfulErrorForEmptyQuery(t *testing.T) {
 	}, response)
 }
 
+func TestQueryEndpointReturnsEmptyResultsForAnEmptyBatch(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	response := server.Query(t, "")
+
+	require.Empty(t, response.Results)
+}
+
+func TestQueryEndpointSupportsJSONPrimitiveParameterValues(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	response := server.Query(t, "", harness.Query{
+		Query: "SELECT ?, ?, ?, ?, ?;",
+		Params: []harness.QueryParam{
+			{Value: nil},
+			{Value: true},
+			{Value: false},
+			{Value: 123},
+			{Value: 4.5},
+		},
+	})
+
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type:    "read",
+			Columns: []string{"?", "?", "?", "?", "?"},
+			Types:   []string{"NULL", "INTEGER", "INTEGER", "REAL", "REAL"},
+			Rows: [][]any{{
+				nil,
+				float64(1),
+				float64(0),
+				float64(123),
+				4.5,
+			}},
+		}},
+	}, response)
+}
+
+func TestQueryEndpointReturnsResultErrorsForUnsupportedParameterTypes(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	testCases := []struct {
+		name  string
+		param harness.QueryParam
+		error string
+	}{
+		{
+			name:  "array parameter",
+			param: harness.QueryParam{Value: []any{"Ada"}},
+			error: "unsupported bind []interface {} type",
+		},
+		{
+			name:  "object parameter",
+			param: harness.QueryParam{Value: map[string]any{"name": "Ada"}},
+			error: "unsupported bind map[string]interface {} type",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			response := server.Query(t, "", harness.Query{
+				Query:  "SELECT ?;",
+				Params: []harness.QueryParam{testCase.param},
+			})
+
+			require.Equal(t, "error", response.Results[0].Type)
+			require.Contains(t, response.Results[0].Error, testCase.error)
+		})
+	}
+}
+
 func TestQueryEndpointSupportsAllDeclaredSQLiteTypes(t *testing.T) {
 	t.Parallel()
 

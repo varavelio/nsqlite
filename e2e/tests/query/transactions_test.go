@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/varavelio/nsqlite/e2e/harness"
@@ -112,6 +113,128 @@ func TestTransactionsRejectInvalidTransactionOperations(t *testing.T) {
 			require.NotEmpty(t, response.Results[0].Error)
 		})
 	}
+}
+
+func TestTransactionsRequireTheExactTransactionID(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+	server.Query(
+		t,
+		"",
+		harness.Query{Query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);"},
+	)
+
+	t.Run("commit without txId", func(t *testing.T) {
+		response := server.Query(t, "", harness.Query{Query: "COMMIT;"})
+		require.Equal(t, harness.QueryResponse{
+			Results: []harness.QueryResult{{
+				Type:  "error",
+				Error: "transaction ID is required for this operation",
+			}},
+		}, response)
+	})
+
+	t.Run("rollback without txId", func(t *testing.T) {
+		response := server.Query(t, "", harness.Query{Query: "ROLLBACK;"})
+		require.Equal(t, harness.QueryResponse{
+			Results: []harness.QueryResult{{
+				Type:  "error",
+				Error: "transaction ID is required for this operation",
+			}},
+		}, response)
+	})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := begin.Results[0].TxID
+
+	t.Run("query with wrong txId", func(t *testing.T) {
+		response := server.Query(t, "", harness.Query{Query: "SELECT 1;", TxID: "wrong-tx-id"})
+		require.Equal(t, harness.QueryResponse{
+			Results: []harness.QueryResult{{
+				Type:  "error",
+				Error: "transaction ID does not match the currently active transaction",
+			}},
+		}, response)
+	})
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	require.Equal(t, "commit", commit.Results[0].Type)
+
+	t.Run("query after timeout or close reports missing transaction", func(t *testing.T) {
+		response := server.Query(t, "", harness.Query{Query: "SELECT 1;", TxID: txID})
+		require.Equal(t, harness.QueryResponse{
+			Results: []harness.QueryResult{{
+				Type:  "error",
+				Error: "transaction not found or timed out, check your settings",
+			}},
+		}, response)
+	})
+}
+
+func TestTransactionsAcceptEndTransactionAsARollbackAlias(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+	server.Query(
+		t,
+		"",
+		harness.Query{Query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);"},
+	)
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := begin.Results[0].TxID
+
+	server.Query(t, "", harness.Query{
+		Query: "INSERT INTO users (name) VALUES ('Ada');",
+		TxID:  txID,
+	})
+
+	endTransaction := server.Query(t, "", harness.Query{Query: "END TRANSACTION;", TxID: txID})
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type: "rollback",
+		}},
+	}, endTransaction)
+
+	afterRollback := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM users;"})
+	require.Equal(t, [][]any{{float64(0)}}, afterRollback.Results[0].Rows)
+}
+
+func TestTransactionsRollbackIdleTransactionsAutomatically(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{TxIdleTimeout: 100 * time.Millisecond})
+	server.Query(
+		t,
+		"",
+		harness.Query{Query: "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT);"},
+	)
+	baselineStats := server.Stats(t, "")
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := begin.Results[0].TxID
+
+	server.Query(t, "", harness.Query{
+		Query: "INSERT INTO users (name) VALUES ('Ada');",
+		TxID:  txID,
+	})
+
+	require.Eventually(t, func() bool {
+		stats := server.Stats(t, "")
+		return stats.Totals.Rollbacks == baselineStats.Totals.Rollbacks+1
+	}, 2*time.Second, 50*time.Millisecond)
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type:  "error",
+			Error: "transaction not found or timed out, check your settings",
+		}},
+	}, commit)
+
+	afterTimeout := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM users;"})
+	require.Equal(t, [][]any{{float64(0)}}, afterTimeout.Results[0].Rows)
 }
 
 func TestTransactionsRejectNestedAndClosedTransactionReuse(t *testing.T) {

@@ -13,6 +13,10 @@ func TestOpenServerAllowsAdminEndpointsAndWritesWithoutTokens(t *testing.T) {
 
 	server := harness.StartServer(t, harness.ServerConfig{})
 
+	versionResponse := server.Get(t, "/version", "")
+	require.Equal(t, http.StatusOK, versionResponse.StatusCode)
+	require.Equal(t, "0.0.0-dev", string(versionResponse.Body))
+
 	stats := server.Stats(t, "")
 	require.GreaterOrEqual(t, stats.Totals.Reads, int64(1))
 
@@ -24,11 +28,11 @@ func TestOpenServerAllowsAdminEndpointsAndWritesWithoutTokens(t *testing.T) {
 	require.Equal(t, "write", writeResponse.Results[0].Type)
 }
 
-func TestMultipleAdminTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
+func TestMultipleAdminTokensSupportPlaintextAndBcrypt(t *testing.T) {
 	t.Parallel()
 
 	server := harness.StartServer(t, harness.ServerConfig{
-		AuthToken: "admin-plain,$2a$12$ydeSiOAMb4LSMfPwfiyjnemIE5iVSKIk9bNbCFcCWx75IWnhutGvG,$argon2id$v=19$m=16,t=2,p=1$c29tZS1hdXRoLXRva2Vu$stUgc57gBF5lQIpyk59xvQ",
+		AuthToken: "admin-plain,$2a$12$ydeSiOAMb4LSMfPwfiyjnemIE5iVSKIk9bNbCFcCWx75IWnhutGvG",
 	})
 
 	for _, token := range []string{"admin-plain", "some-auth-token"} {

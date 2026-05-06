@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -25,11 +26,15 @@ const (
 func main() {
 	fmt.Println("Downloading SQLite amalgamation...")
 
-	resp, err := http.Get(zipURL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, zipURL, nil)
+	if err != nil {
+		panic(fmt.Errorf("failed to create request: %w", err))
+	}
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		panic(fmt.Errorf("failed to download: %w", err))
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -68,7 +73,9 @@ func main() {
 			panic(fmt.Errorf("failed to open %s in zip: %w", f.Name, err))
 		}
 		data, err := io.ReadAll(rc)
-		rc.Close()
+		if cerr := rc.Close(); cerr != nil {
+			panic(fmt.Errorf("failed to close %s: %w", f.Name, cerr))
+		}
 		if err != nil {
 			panic(fmt.Errorf("failed to read %s: %w", f.Name, err))
 		}

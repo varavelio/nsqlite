@@ -16,8 +16,7 @@ func (s *Server) errorHandler(
 	errorURL := r.URL.String()
 	errorId := uuid.NewString()
 
-	var jsonErr httputil.JSONError
-	if errors.As(err, &jsonErr) {
+	if jsonErr, ok := errors.AsType[httputil.JSONError](err); ok {
 		statusText := http.StatusText(jsonErr.HTTPStatus)
 		safeMessage := jsonErr.SafeMessage
 		if safeMessage == "" {

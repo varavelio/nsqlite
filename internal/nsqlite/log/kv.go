@@ -5,10 +5,10 @@ import (
 	"slices"
 )
 
-// KV is a record of key-value pair to be logged
+// KV is a record of key-value pair to be logged.
 type KV map[string]any
 
-// kvToArgs converts a slice of KV to a slice of any
+// kvToArgs converts a slice of KV to a slice of any.
 func kvToArgs(kv ...KV) []any {
 	pickedKv := KV{}
 	if len(kv) > 0 {
@@ -26,7 +26,7 @@ func kvToArgs(kv ...KV) []any {
 }
 
 // kvToArgsNs converts a slice of KV to a slice of any
-// and adds a namespace to the resulting slice
+// and adds a namespace to the resulting slice.
 func kvToArgsNs(ns string, kv ...KV) []any {
 	pickedKv := KV{}
 	if len(kv) > 0 {

@@ -19,8 +19,6 @@ import (
 	"github.com/varavelio/nsqlite/internal/util/netutil"
 )
 
-const defaultAdminToken = "test-admin-token"
-
 // createServer creates a new NSQLite server and returns the
 // http base url to use in tests.
 //
@@ -43,9 +41,6 @@ func createServer(t testing.TB, conf ...config.Config) string {
 	pickedConf := config.Config{}
 	if len(conf) > 0 {
 		pickedConf = conf[0]
-	}
-	if pickedConf.AuthToken == "" && pickedConf.AuthTokenRW == "" && pickedConf.AuthTokenRO == "" {
-		pickedConf.AuthToken = defaultAdminToken
 	}
 	pickedConf.DataDir = tmpDir
 	pickedConf.ListenPort = strconv.Itoa(port)
@@ -72,7 +67,7 @@ func createServer(t testing.TB, conf ...config.Config) string {
 // to test successful queries.
 func sendQuery(t testing.TB, url string, query Query) Response {
 	t.Helper()
-	return sendQueryWithToken(t, url, defaultAdminToken, query)
+	return sendQueryWithToken(t, url, "", query)
 }
 
 func sendQueryWithToken(t testing.TB, url, token string, query Query) Response {
@@ -156,7 +151,7 @@ func assertQueryStatus(t testing.TB, url, token string, query Query, expectedSta
 // It sets the StartedAt and Uptime to the zero values to make the results deterministic.
 func getStats(t testing.TB, baseURL string) LoadedStats {
 	t.Helper()
-	return getStatsWithToken(t, baseURL, defaultAdminToken)
+	return getStatsWithToken(t, baseURL, "")
 }
 
 func getStatsWithToken(t testing.TB, baseURL, token string) LoadedStats {

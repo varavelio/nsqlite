@@ -46,10 +46,6 @@ type Server struct {
 
 // NewServer creates a new NSQLite server.
 func NewServer(config Config) (*Server, error) {
-	if len(config.AuthTokens)+len(config.ReadWriteAuthTokens)+len(config.ReadOnlyAuthTokens) == 0 {
-		return nil, errors.New("at least one authentication token must be configured")
-	}
-
 	if config.ListenHost == "" {
 		config.ListenHost = "0.0.0.0"
 	}
@@ -127,6 +123,11 @@ func (s *Server) createMux() *http.ServeMux {
 	}
 
 	return mux
+}
+
+// authIsDisabled reports whether the server should allow every request.
+func (s *Server) authIsDisabled() bool {
+	return len(s.authTokens) == 0
 }
 
 // Start starts the server.

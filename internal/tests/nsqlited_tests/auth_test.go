@@ -22,6 +22,18 @@ func TestAuth(t *testing.T) {
 	roPlain := "ro-plain"
 	roPlain2 := "ro-plain-2"
 
+	t.Run("query without configured tokens allows full access", func(t *testing.T) {
+		openURL := createServer(t)
+		assertQueryStatus(t, openURL+"/query", "", queryToTest, http.StatusOK)
+		assertQueryStatus(t, openURL+"/query", "", writeQuery, http.StatusOK)
+	})
+
+	t.Run("admin endpoints work without configured tokens", func(t *testing.T) {
+		openURL := createServer(t)
+		stats := getStats(t, openURL)
+		assert.GreaterOrEqual(t, stats.Totals.Reads, int64(1))
+	})
+
 	baseURL := createServer(t, config.Config{
 		AuthToken:   adminPlain + "," + adminBcrypt + "," + adminArgon2,
 		AuthTokenRW: rwPlain + "," + rwPlain2,

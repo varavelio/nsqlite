@@ -1,7 +1,10 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -45,128 +48,197 @@ type Query struct {
 	Params []sqlite.QueryParam `json:"params"`
 }
 
-// queryHandler is the HTTP handler for the /query endpoint that
-// executes SQL queries.
+// queryHandler decodes request queries, classifies each one once, enforces
+// authorization, and executes the allowed queries.
 func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 	s.DBStats.IncHTTPRequests()
 	s.DBStats.IncQueuedHTTPRequests()
 	defer s.DBStats.DecQueuedHTTPRequests()
-	ctx := r.Context()
 
-	var queries []Query
-	if parsedQueries, ok := getQueriesFromContext(r.Context()); ok {
-		queries = parsedQueries
-	} else if err := json.NewDecoder(r.Body).Decode(&queries); err != nil {
+	ctx := r.Context()
+	role, ok := getAuthRoleFromContext(ctx)
+	if !ok {
 		return httputil.NewJSONError(
-			http.StatusBadRequest, err, "Failed to read request body",
+			http.StatusInternalServerError,
+			errors.New("missing auth role in request context"),
+			"Internal server error",
 		)
 	}
 
+	queries, err := decodeQueries(r)
+	if err != nil {
+		return err
+	}
+
 	allStart := time.Now()
-	results := []ResponseResult{}
+	results := make([]ResponseResult, 0, len(queries))
 
-	for _, q := range queries {
-		thisStart := time.Now()
-
-		if q.Query == "" {
-			results = append(results, ResponseResult{
-				Type:  "error",
-				Time:  time.Since(thisStart).Seconds(),
-				Error: "Empty query",
-			})
-			s.Logger.Error(ctx, "error executing query",
-				"query", q.Query,
-				"params", q.Params,
-				"txId", q.TxID,
-				"error", "empty query",
-			)
-			continue
+	for _, query := range queries {
+		result, shouldStop := s.executeRequestQuery(ctx, role, query)
+		if shouldStop {
+			return forbiddenError()
 		}
 
-		res, err := s.DB.Query(ctx, db.Query{
-			TxID:   q.TxID,
-			Query:  q.Query,
-			Params: q.Params,
-		})
-		if err != nil {
-			results = append(results, ResponseResult{
-				Type:  "error",
-				Time:  time.Since(thisStart).Seconds(),
-				Error: err.Error(),
-			})
-			s.Logger.Error(ctx, "error executing query",
-				"query", q.Query,
-				"params", q.Params,
-				"txId", q.TxID,
-				"error", err.Error(),
-			)
-			continue
-		}
-
-		if res.Type == db.QueryTypeBegin {
-			results = append(results, ResponseResult{
-				Type: "begin",
-				Time: time.Since(thisStart).Seconds(),
-				TxID: res.TxID,
-			})
-			continue
-		}
-
-		if res.Type == db.QueryTypeCommit {
-			results = append(results, ResponseResult{
-				Type: "commit",
-				Time: time.Since(thisStart).Seconds(),
-			})
-			continue
-		}
-
-		if res.Type == db.QueryTypeRollback {
-			results = append(results, ResponseResult{
-				Type: "rollback",
-				Time: time.Since(thisStart).Seconds(),
-			})
-			continue
-		}
-
-		if res.Type == db.QueryTypeWrite {
-			results = append(results, ResponseResult{
-				Type:         "write",
-				Time:         time.Since(thisStart).Seconds(),
-				LastInsertID: res.LastInsertID,
-				RowsAffected: res.RowsAffected,
-				Columns:      res.Columns,
-				Types:        res.Types,
-				Rows:         res.Rows,
-			})
-			continue
-		}
-
-		if res.Type == db.QueryTypeRead {
-			results = append(results, ResponseResult{
-				Type:    "read",
-				Time:    time.Since(thisStart).Seconds(),
-				Columns: res.Columns,
-				Types:   res.Types,
-				Rows:    res.Rows,
-			})
-			continue
-		}
-
-		results = append(results, ResponseResult{
-			Type:  "error",
-			Time:  time.Since(thisStart).Seconds(),
-			Error: "Unknown query response type: " + string(res.Type),
-		})
-		s.Logger.Error(ctx, "unknown query response type",
-			"query", q.Query,
-			"params", q.Params,
-			"txId", q.TxID,
-			"type", string(res.Type),
-		)
+		results = append(results, result)
 	}
 
 	return httputil.WriteJSON(w, http.StatusOK, Response{
 		Time:    time.Since(allStart).Seconds(),
 		Results: results,
 	})
+}
+
+// decodeQueries reads and validates the request body for the /query endpoint.
+func decodeQueries(r *http.Request) ([]Query, error) {
+	queries := []Query{}
+	if err := json.NewDecoder(r.Body).Decode(&queries); err != nil {
+		return nil, httputil.NewJSONError(
+			http.StatusBadRequest,
+			err,
+			"Failed to read request body",
+		)
+	}
+
+	return queries, nil
+}
+
+// executeRequestQuery classifies a single request query, checks authorization,
+// executes it, and formats the HTTP response payload.
+func (s *Server) executeRequestQuery(
+	ctx context.Context,
+	role authRole,
+	query Query,
+) (ResponseResult, bool) {
+	startedAt := time.Now()
+
+	if query.Query == "" {
+		return s.emptyQueryResult(ctx, query, startedAt), false
+	}
+
+	queryType, err := s.DB.ClassifyQuery(ctx, query.Query)
+	if err != nil {
+		return s.classificationErrorResult(ctx, query, startedAt, err), false
+	}
+
+	if !isQueryAllowed(role, queryType) {
+		return ResponseResult{}, true
+	}
+
+	result, err := s.DB.Query(ctx, db.Query{
+		Type:   queryType,
+		TxID:   query.TxID,
+		Query:  query.Query,
+		Params: query.Params,
+	})
+	if err != nil {
+		return s.executionErrorResult(ctx, query, startedAt, err), false
+	}
+
+	return buildResponseResult(startedAt, result), false
+}
+
+// emptyQueryResult builds the response payload for an empty query.
+func (s *Server) emptyQueryResult(
+	ctx context.Context,
+	query Query,
+	startedAt time.Time,
+) ResponseResult {
+	result := ResponseResult{
+		Type:  "error",
+		Time:  time.Since(startedAt).Seconds(),
+		Error: "Empty query",
+	}
+
+	s.Logger.Error(ctx, "error executing query",
+		"query", query.Query,
+		"params", query.Params,
+		"txId", query.TxID,
+		"error", "empty query",
+	)
+
+	return result
+}
+
+// classificationErrorResult builds the response payload for a query classification failure.
+func (s *Server) classificationErrorResult(
+	ctx context.Context,
+	query Query,
+	startedAt time.Time,
+	err error,
+) ResponseResult {
+	wrappedErr := fmt.Errorf("failed to detect query type: %w", err)
+	result := ResponseResult{
+		Type:  "error",
+		Time:  time.Since(startedAt).Seconds(),
+		Error: wrappedErr.Error(),
+	}
+
+	s.Logger.Error(ctx, "error classifying query",
+		"query", query.Query,
+		"params", query.Params,
+		"txId", query.TxID,
+		"error", err.Error(),
+	)
+
+	return result
+}
+
+// executionErrorResult builds the response payload for a query execution failure.
+func (s *Server) executionErrorResult(
+	ctx context.Context,
+	query Query,
+	startedAt time.Time,
+	err error,
+) ResponseResult {
+	result := ResponseResult{
+		Type:  "error",
+		Time:  time.Since(startedAt).Seconds(),
+		Error: err.Error(),
+	}
+
+	s.Logger.Error(ctx, "error executing query",
+		"query", query.Query,
+		"params", query.Params,
+		"txId", query.TxID,
+		"error", err.Error(),
+	)
+
+	return result
+}
+
+// buildResponseResult converts a database query result into an HTTP response result.
+func buildResponseResult(startedAt time.Time, result db.QueryResult) ResponseResult {
+	base := ResponseResult{
+		Type: string(result.Type),
+		Time: time.Since(startedAt).Seconds(),
+	}
+
+	if result.Type == db.QueryTypeBegin {
+		base.TxID = result.TxID
+		return base
+	}
+
+	if result.Type == db.QueryTypeCommit || result.Type == db.QueryTypeRollback {
+		return base
+	}
+
+	if result.Type == db.QueryTypeWrite {
+		base.LastInsertID = result.LastInsertID
+		base.RowsAffected = result.RowsAffected
+		base.Columns = result.Columns
+		base.Types = result.Types
+		base.Rows = result.Rows
+		return base
+	}
+
+	if result.Type == db.QueryTypeRead {
+		base.Columns = result.Columns
+		base.Types = result.Types
+		base.Rows = result.Rows
+		return base
+	}
+
+	base.Type = "error"
+	base.Error = "Unknown query response type: " + string(result.Type)
+	return base
 }

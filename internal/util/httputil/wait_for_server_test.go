@@ -3,6 +3,7 @@ package httputil
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -31,9 +32,9 @@ func TestWaitForServer(t *testing.T) {
 	})
 
 	t.Run("NotReadyInitially", func(t *testing.T) {
-		ready := false
+		var ready atomic.Bool
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if ready {
+			if ready.Load() {
 				w.WriteHeader(http.StatusOK)
 			} else {
 				http.Error(w, "not ready", http.StatusServiceUnavailable)
@@ -43,7 +44,7 @@ func TestWaitForServer(t *testing.T) {
 
 		go func() {
 			time.Sleep(500 * time.Millisecond)
-			ready = true
+			ready.Store(true)
 		}()
 
 		err := WaitForServer(server.URL, 2*time.Second)

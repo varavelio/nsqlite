@@ -1,6 +1,7 @@
 GET {{host}}/health
-Authorization: Bearer {{admin_token}}
 
 HTTP 200
 [Asserts]
+header "content-type" contains "text/plain"
+header "x-server" == "NSQLite"
 body == "OK"

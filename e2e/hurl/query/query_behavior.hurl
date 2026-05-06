@@ -55,3 +55,22 @@ HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "error"
 jsonpath "$.results[0].error" != ""
+
+# SQL execution errors stay inside the batch.
+POST {{host}}/query
+Authorization: Bearer {{rw_token}}
+Content-Type: application/json
+[
+  {
+    "query": "SELECT * FROM non_existent_table;"
+  },
+  {
+    "query": "SELECT 42;"
+  }
+]
+
+HTTP 200
+[Asserts]
+jsonpath "$.results[0].type" == "error"
+jsonpath "$.results[1].type" == "read"
+jsonpath "$.results[1].rows[0][0]" == 42

@@ -1,6 +1,9 @@
 package httputil
 
-import "net/http"
+import (
+	"net/http"
+	"slices"
+)
 
 // HandlerFuncErr behaves like http.HandlerFunc but returns an error.
 type HandlerFuncErr func(w http.ResponseWriter, r *http.Request) error
@@ -11,7 +14,7 @@ type Middleware func(next HandlerFuncErr) HandlerFuncErr
 // ErrorHandler handles errors returned by handlers or middlewares.
 type ErrorHandler func(w http.ResponseWriter, r *http.Request, err error)
 
-// HandlerFuncBuilder
+// HandlerFuncBuilder builds an http.HandlerFunc from a HandlerFuncErr and middlewares.
 type HandlerFuncBuilder func(handler HandlerFuncErr, middlewares ...Middleware) http.HandlerFunc
 
 // CreateHandlerFuncBuilder returns a function that creates an http.HandlerFunc
@@ -23,8 +26,7 @@ func CreateHandlerFuncBuilder(errorHandler ErrorHandler) HandlerFuncBuilder {
 
 			// Apply middlewares in reverse order for better readability
 			// and clarity of the request flow.
-			for i := len(middlewares) - 1; i >= 0; i-- {
-				middleware := middlewares[i]
+			for _, middleware := range slices.Backward(middlewares) {
 				previousHandler := finalHandler
 
 				finalHandler = func(writer http.ResponseWriter, request *http.Request) error {

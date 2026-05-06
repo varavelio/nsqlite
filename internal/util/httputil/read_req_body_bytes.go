@@ -19,6 +19,6 @@ func ReadReqBodyBytes(r *http.Request) ([]byte, error) {
 		return nil, nil
 	}
 
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 	return io.ReadAll(r.Body)
 }

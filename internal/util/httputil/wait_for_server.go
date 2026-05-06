@@ -1,6 +1,7 @@
 package httputil
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"time"
@@ -10,15 +11,27 @@ import (
 // server is considered ready if it returns a 200 OK response for the given
 // URL.
 func WaitForServer(url string, timeout time.Duration) error {
-	deadline := time.Now().Add(timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 
-	for time.Now().Before(deadline) {
-		resp, err := http.Get(url)
-		if err == nil && resp.StatusCode == http.StatusOK {
-			return nil
+	for {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		if err != nil {
+			return fmt.Errorf("failed to create request: %w", err)
 		}
-		time.Sleep(50 * time.Millisecond)
-	}
 
-	return fmt.Errorf("server at %s did not become ready within %s", url, timeout.String())
+		resp, err := http.DefaultClient.Do(req)
+		if err == nil {
+			_ = resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("server at %s did not become ready within %s", url, timeout.String())
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
 }

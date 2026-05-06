@@ -54,7 +54,9 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 	ctx := r.Context()
 
 	var queries []Query
-	if err := json.NewDecoder(r.Body).Decode(&queries); err != nil {
+	if parsedQueries, ok := getQueriesFromContext(r.Context()); ok {
+		queries = parsedQueries
+	} else if err := json.NewDecoder(r.Body).Decode(&queries); err != nil {
 		return httputil.NewJSONError(
 			http.StatusBadRequest, err, "Failed to read request body",
 		)

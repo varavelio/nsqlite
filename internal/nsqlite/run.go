@@ -45,12 +45,14 @@ func Run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 	}()
 
 	serv, err := server.NewServer(server.Config{
-		Logger:     log,
-		DBStats:    dbStats,
-		DB:         dbInstance,
-		AuthToken:  conf.AuthToken,
-		ListenHost: conf.ListenHost,
-		ListenPort: conf.ListenPort,
+		Logger:              log,
+		DBStats:             dbStats,
+		DB:                  dbInstance,
+		AuthTokens:          conf.AuthTokens(),
+		ReadWriteAuthTokens: conf.ReadWriteAuthTokens(),
+		ReadOnlyAuthTokens:  conf.ReadOnlyAuthTokens(),
+		ListenHost:          conf.ListenHost,
+		ListenPort:          conf.ListenPort,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)

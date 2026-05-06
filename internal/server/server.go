@@ -11,7 +11,6 @@ import (
 	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/stats"
-	"github.com/varavelio/nsqlite/internal/util/cryptoutil"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
@@ -23,8 +22,12 @@ type Config struct {
 	DBStats *stats.DBStats
 	// DB is the NSQLite database instance to use.
 	DB *db.DB
-	// AuthToken is the auth token to use.
-	AuthToken string
+	// AuthTokens are the admin auth tokens.
+	AuthTokens []string
+	// ReadWriteAuthTokens are the read/write auth tokens.
+	ReadWriteAuthTokens []string
+	// ReadOnlyAuthTokens are the read-only auth tokens.
+	ReadOnlyAuthTokens []string
 	// ListenHost is the host to listen on.
 	ListenHost string
 	// ListenPort is the port to listen on.
@@ -34,7 +37,7 @@ type Config struct {
 // Server is the server for NSQLite.
 type Server struct {
 	Config
-	authTokenAlgo  cryptoutil.HashAlgo
+	authTokens     []authToken
 	authTokenCache sync.Map
 	authTokenSalt  string
 	isInitialized  bool
@@ -43,6 +46,10 @@ type Server struct {
 
 // NewServer creates a new NSQLite server.
 func NewServer(config Config) (*Server, error) {
+	if len(config.AuthTokens)+len(config.ReadWriteAuthTokens)+len(config.ReadOnlyAuthTokens) == 0 {
+		return nil, errors.New("at least one authentication token must be configured")
+	}
+
 	if config.ListenHost == "" {
 		config.ListenHost = "0.0.0.0"
 	}
@@ -51,8 +58,12 @@ func NewServer(config Config) (*Server, error) {
 	}
 
 	s := Server{
-		Config:         config,
-		authTokenAlgo:  cryptoutil.GetHashAlgo(config.AuthToken),
+		Config: config,
+		authTokens: newAuthTokens(
+			config.AuthTokens,
+			config.ReadWriteAuthTokens,
+			config.ReadOnlyAuthTokens,
+		),
 		authTokenCache: sync.Map{},
 		authTokenSalt:  uuid.NewString(),
 		isInitialized:  true,
@@ -72,7 +83,7 @@ func (s *Server) createMux() *http.ServeMux {
 	mux := http.NewServeMux()
 
 	headerAuthMws := []httputil.Middleware{
-		s.queryHandlerAuthMiddleware,
+		s.adminAuthMiddleware,
 	}
 
 	routes := []struct {
@@ -97,7 +108,7 @@ func (s *Server) createMux() *http.ServeMux {
 		{
 			pattern:     "/query",
 			handler:     s.queryHandler,
-			middlewares: headerAuthMws,
+			middlewares: []httputil.Middleware{s.queryHandlerAuthMiddleware},
 		},
 	}
 

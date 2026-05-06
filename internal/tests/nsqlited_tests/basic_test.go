@@ -32,6 +32,7 @@ func TestBasic(t *testing.T) {
 
 		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		assert.NoError(t, err)
+		req.Header.Set("Authorization", "Bearer "+defaultAdminToken)
 		resp, err := http.DefaultClient.Do(req)
 		assert.NoError(t, err)
 		defer func() { _ = resp.Body.Close() }()

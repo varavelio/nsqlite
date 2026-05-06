@@ -29,6 +29,7 @@ tasks:
     desc: Install all dependencies
     cmds:
       - go mod download
+      - go run ./scripts/fetch-sqlite/main.go
 
   build:
     desc: Build the binary for the current platform

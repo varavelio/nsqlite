@@ -2,16 +2,14 @@ package main
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/varavelio/nsqlite/internal/nsqlite"
 )
-
-// The only responsibility of the main function is to provide the operating
-// system fundamentals to run nsqlited.
 
 func main() {
 	// skip the first argument, which is the program name
@@ -22,6 +20,13 @@ func main() {
 	defer stop()
 
 	if err := nsqlite.Run(ctx, stop, os.Stdout, args); err != nil {
-		log.Fatal(err)
+		msg := fmt.Sprintf(
+			"%s %s: %s",
+			time.Now().UTC().Format(time.RFC3339),
+			"error running NSQLite server",
+			err.Error(),
+		)
+		fmt.Fprintln(os.Stderr, msg)
+		os.Exit(1)
 	}
 }

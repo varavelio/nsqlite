@@ -3,7 +3,7 @@ package server
 import (
 	"net/http"
 
-	"github.com/varavelio/nsqlite/internal/nsqlite/db"
+	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 

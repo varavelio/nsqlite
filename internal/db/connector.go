@@ -3,7 +3,7 @@ package db
 import (
 	"database/sql/driver"
 
-	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitedrv"
+	"github.com/varavelio/nsqlite/internal/sqlitedrv"
 )
 
 func newConnector(dbPath string, readOnly bool) driver.Connector {

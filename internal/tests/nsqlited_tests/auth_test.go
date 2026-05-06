@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/varavelio/nsqlite/internal/nsqlite/config"
+	"github.com/varavelio/nsqlite/internal/config"
 )
 
 func TestAuth(t *testing.T) {

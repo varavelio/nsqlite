@@ -11,7 +11,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitec"
+	"github.com/varavelio/nsqlite/internal/sqlitec"
 )
 
 var (

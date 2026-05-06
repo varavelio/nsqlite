@@ -13,8 +13,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/varavelio/nsqlite/internal/config"
 	"github.com/varavelio/nsqlite/internal/nsqlite"
-	"github.com/varavelio/nsqlite/internal/nsqlite/config"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 	"github.com/varavelio/nsqlite/internal/util/netutil"
 )

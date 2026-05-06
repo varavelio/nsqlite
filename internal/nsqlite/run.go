@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/varavelio/nsqlite/internal/nsqlite/config"
-	"github.com/varavelio/nsqlite/internal/nsqlite/db"
-	"github.com/varavelio/nsqlite/internal/nsqlite/log"
-	"github.com/varavelio/nsqlite/internal/nsqlite/server"
-	"github.com/varavelio/nsqlite/internal/nsqlite/stats"
+	"github.com/varavelio/nsqlite/internal/config"
+	"github.com/varavelio/nsqlite/internal/db"
+	"github.com/varavelio/nsqlite/internal/log"
+	"github.com/varavelio/nsqlite/internal/server"
+	"github.com/varavelio/nsqlite/internal/stats"
 	"github.com/varavelio/nsqlite/internal/version"
 )
 

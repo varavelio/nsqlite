@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/varavelio/nsqlite/internal/nsqlite/log"
+	"github.com/varavelio/nsqlite/internal/log"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 

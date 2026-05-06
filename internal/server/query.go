@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/varavelio/nsqlite/internal/nsqlite/db"
-	"github.com/varavelio/nsqlite/internal/nsqlite/log"
-	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitec"
+	"github.com/varavelio/nsqlite/internal/db"
+	"github.com/varavelio/nsqlite/internal/log"
+	"github.com/varavelio/nsqlite/internal/sqlitec"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 

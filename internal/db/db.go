@@ -14,10 +14,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/orsinium-labs/enum"
-	"github.com/varavelio/nsqlite/internal/nsqlite/log"
-	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitec"
-	"github.com/varavelio/nsqlite/internal/nsqlite/sqlitedrv"
-	"github.com/varavelio/nsqlite/internal/nsqlite/stats"
+	"github.com/varavelio/nsqlite/internal/log"
+	"github.com/varavelio/nsqlite/internal/sqlitec"
+	"github.com/varavelio/nsqlite/internal/sqlitedrv"
+	"github.com/varavelio/nsqlite/internal/stats"
 	"github.com/varavelio/nsqlite/internal/util/syncutil"
 )
 

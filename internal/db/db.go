@@ -55,7 +55,9 @@ type DB struct {
 }
 
 // Query represents a query to be executed.
+// Type must be provided by the caller.
 type Query struct {
+	Type   QueryType
 	TxID   string
 	Query  string
 	Params []sqlite.QueryParam
@@ -281,9 +283,8 @@ func (db *DB) Query(ctx context.Context, query Query) (QueryResult, error) {
 
 // query is the underlying logic for Query.
 func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
-	typeOfQuery, err := db.ClassifyQuery(ctx, query.Query)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
+	if query.Type == QueryTypeUnknown {
+		return QueryResult{}, errors.New("query type is required")
 	}
 
 	if query.TxID != "" {
@@ -297,7 +298,7 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		db.txLastUsed.Store(time.Now())
 	}
 
-	switch typeOfQuery {
+	switch query.Type {
 	case QueryTypeBegin:
 		return db.executeBeginQuery(ctx, query.TxID)
 	case QueryTypeCommit:
@@ -310,7 +311,7 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return db.executeWriteQuery(ctx, query)
 	}
 
-	return QueryResult{}, fmt.Errorf("unknown query type: %s", typeOfQuery)
+	return QueryResult{}, fmt.Errorf("unknown query type: %s", query.Type)
 }
 
 // executeBeginQuery executes a begin query using the read-write connection.

@@ -179,6 +179,22 @@ func (s *Server) Query(t testing.TB, token string, queries ...Query) QueryRespon
 	return DecodeJSON[QueryResponse](t, response).WithoutTiming()
 }
 
+// Stats fetches `/stats` and decodes the successful response.
+func (s *Server) Stats(t testing.TB, token string) LoadedStats {
+	t.Helper()
+
+	response := s.Get(t, "/stats", token)
+	require.Equal(
+		t,
+		http.StatusOK,
+		response.StatusCode,
+		"unexpected response body: %s",
+		string(response.Body),
+	)
+
+	return DecodeJSON[LoadedStats](t, response)
+}
+
 func (s *Server) waitUntilReady() error {
 	deadline := time.Now().Add(serverReadyTimeout)
 

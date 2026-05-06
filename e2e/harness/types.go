@@ -47,3 +47,44 @@ type APIError struct {
 	Error   string `json:"error"`
 	Message string `json:"message"`
 }
+
+// LoadedStats matches the public `/stats` response payload.
+type LoadedStats struct {
+	StartedAt          string `json:"startedAt"`
+	Uptime             string `json:"uptime"`
+	QueuedBegins       int64  `json:"queuedBegins"`
+	QueuedWrites       int64  `json:"queuedWrites"`
+	QueuedHTTPRequests int64  `json:"queuedHttpRequests"`
+	Totals             Totals `json:"totals"`
+	Stats              []Stat `json:"stats"`
+}
+
+// WithoutRuntime clears runtime-dependent fields to keep assertions deterministic.
+func (s LoadedStats) WithoutRuntime() LoadedStats {
+	s.StartedAt = ""
+	s.Uptime = ""
+	return s
+}
+
+// Totals stores aggregate counters returned by `/stats`.
+type Totals struct {
+	Reads        int64 `json:"reads"`
+	Writes       int64 `json:"writes"`
+	Begins       int64 `json:"begins"`
+	Commits      int64 `json:"commits"`
+	Rollbacks    int64 `json:"rollbacks"`
+	Errors       int64 `json:"errors"`
+	HTTPRequests int64 `json:"httpRequests"`
+}
+
+// Stat stores one per-minute bucket from the `/stats` response.
+type Stat struct {
+	Minute       string `json:"minute"`
+	Reads        int64  `json:"reads"`
+	Writes       int64  `json:"writes"`
+	Begins       int64  `json:"begins"`
+	Commits      int64  `json:"commits"`
+	Rollbacks    int64  `json:"rollbacks"`
+	Errors       int64  `json:"errors"`
+	HTTPRequests int64  `json:"httpRequests"`
+}

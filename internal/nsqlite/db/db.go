@@ -112,7 +112,7 @@ func NewDB(config Config) (*DB, error) {
 	readOnlyConnector := newConnector(databasePath, true)
 
 	readWritePool := sql.OpenDB(readWriteConnector)
-	if err := readWritePool.Ping(); err != nil {
+	if err := readWritePool.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ping write connection: %w", err)
 	}
 	readWritePool.SetConnMaxIdleTime(0)
@@ -121,7 +121,7 @@ func NewDB(config Config) (*DB, error) {
 	readWritePool.SetMaxOpenConns(1)
 
 	readOnlyPool := sql.OpenDB(readOnlyConnector)
-	if err := readOnlyPool.Ping(); err != nil {
+	if err := readOnlyPool.PingContext(context.Background()); err != nil {
 		return nil, fmt.Errorf("failed to ping read connection: %w", err)
 	}
 	readOnlyPool.SetConnMaxIdleTime(0)
@@ -166,7 +166,7 @@ func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlitec.Conn, fu
 		return nil
 	})
 	if err != nil {
-		poolConn.Close()
+		_ = poolConn.Close()
 		return nil, nil, fmt.Errorf("failed to get raw connection: %w", err)
 	}
 

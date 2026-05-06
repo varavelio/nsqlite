@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/varavelio/nsqlite/internal/db"
-	"github.com/varavelio/nsqlite/internal/log"
 	"github.com/varavelio/nsqlite/internal/sqlite"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
@@ -73,12 +72,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Time:  time.Since(thisStart).Seconds(),
 				Error: "Empty query",
 			})
-			s.Logger.ErrorNs(log.NsServer, "Error executing query", log.KV{
-				"query":  q.Query,
-				"params": q.Params,
-				"txId":   q.TxID,
-				"error":  "Empty query",
-			})
+			s.Logger.Error(ctx, "error executing query",
+				"query", q.Query,
+				"params", q.Params,
+				"txId", q.TxID,
+				"error", "empty query",
+			)
 			continue
 		}
 
@@ -93,12 +92,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 				Time:  time.Since(thisStart).Seconds(),
 				Error: err.Error(),
 			})
-			s.Logger.ErrorNs(log.NsServer, "Error executing query", log.KV{
-				"query":  q.Query,
-				"params": q.Params,
-				"txId":   q.TxID,
-				"error":  err.Error(),
-			})
+			s.Logger.Error(ctx, "error executing query",
+				"query", q.Query,
+				"params", q.Params,
+				"txId", q.TxID,
+				"error", err.Error(),
+			)
 			continue
 		}
 
@@ -156,12 +155,12 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 			Time:  time.Since(thisStart).Seconds(),
 			Error: "Unknown query response type: " + res.Type.Value,
 		})
-		s.Logger.ErrorNs(log.NsServer, "Unknown query response type", log.KV{
-			"query":  q.Query,
-			"params": q.Params,
-			"txId":   q.TxID,
-			"type":   res.Type.Value,
-		})
+		s.Logger.Error(ctx, "unknown query response type",
+			"query", q.Query,
+			"params", q.Params,
+			"txId", q.TxID,
+			"type", res.Type.Value,
+		)
 	}
 
 	return httputil.WriteJSON(w, http.StatusOK, Response{

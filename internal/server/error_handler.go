@@ -5,7 +5,6 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/varavelio/nsqlite/internal/log"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
@@ -23,15 +22,13 @@ func (s *Server) errorHandler(
 			safeMessage = statusText
 		}
 
-		s.Logger.ErrorNs(
-			log.NsServer, "error while handling request", log.KV{
-				"id":      errorId,
-				"status":  jsonErr.HTTPStatus,
-				"error":   jsonErr.Error(),
-				"message": safeMessage,
-				"url":     errorURL,
-				"ip":      ip,
-			},
+		s.Logger.Error(r.Context(), "error while handling request",
+			"id", errorId,
+			"status", jsonErr.HTTPStatus,
+			"error", jsonErr.Error(),
+			"message", safeMessage,
+			"url", errorURL,
+			"ip", ip,
 		)
 
 		_ = httputil.WriteJSON(w, jsonErr.HTTPStatus, map[string]any{
@@ -40,13 +37,11 @@ func (s *Server) errorHandler(
 			"message": safeMessage,
 		})
 	} else {
-		s.Logger.ErrorNs(
-			log.NsServer, "unknown error while handling request", log.KV{
-				"id":    errorId,
-				"error": err.Error(),
-				"url":   errorURL,
-				"ip":    ip,
-			},
+		s.Logger.Error(r.Context(), "unknown error while handling request",
+			"id", errorId,
+			"error", err.Error(),
+			"url", errorURL,
+			"ip", ip,
 		)
 
 		_ = httputil.WriteString(

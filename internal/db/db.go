@@ -14,7 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/orsinium-labs/enum"
-	"github.com/varavelio/nsqlite/internal/log"
+	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/sqlite"
 	"github.com/varavelio/nsqlite/internal/sqlitedrv"
 	"github.com/varavelio/nsqlite/internal/stats"
@@ -31,7 +31,7 @@ var (
 // Config represents the configuration for a DB instance.
 type Config struct {
 	// Logger is the shared NSQLite logger.
-	Logger log.Logger
+	Logger logger.Logger
 	// DBStats is an instance of dbstats.DBStats.
 	DBStats *stats.DBStats
 	// DataDir is the directory where the database files are stored.
@@ -94,9 +94,6 @@ type QueryResult struct {
 
 // NewDB creates a new DB instance.
 func NewDB(config Config) (*DB, error) {
-	if !config.Logger.IsInitialized() {
-		return nil, errors.New("logger is required")
-	}
 	if config.DataDir == "" {
 		return nil, errors.New("database directory is required")
 	}
@@ -144,7 +141,7 @@ func NewDB(config Config) (*DB, error) {
 	db.closeWg.Add(1)
 	go db.txIdleMonitor(config.TxIdleTimeout)
 
-	config.Logger.InfoNs(log.NsDatabase, "database started")
+	config.Logger.Info(context.Background(), "database started")
 	return db, nil
 }
 
@@ -207,13 +204,10 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 			}
 			if time.Since(db.txLastUsed.Load()) > timeout {
 				_, _ = db.executeRollbackQuery(context.Background(), txID)
-				db.Logger.InfoNs(
-					log.NsDatabase,
+				db.Logger.Info(context.Background(),
 					"transaction rolled back due to idle timeout",
-					log.KV{
-						"txId":    txID,
-						"timeout": timeout.String(),
-					},
+					"txId", txID,
+					"timeout", timeout.String(),
 				)
 			}
 		}

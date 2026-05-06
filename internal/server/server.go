@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"github.com/varavelio/nsqlite/internal/db"
-	"github.com/varavelio/nsqlite/internal/log"
+	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/stats"
 	"github.com/varavelio/nsqlite/internal/util/cryptoutil"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
@@ -16,7 +16,7 @@ import (
 // Config represents the configuration for a NSQLite server.
 type Config struct {
 	// Logger is the shared NSQLite logger.
-	Logger log.Logger
+	Logger logger.Logger
 	// DBStats is the NSQLite database stats instance to use.
 	DBStats *stats.DBStats
 	// DB is the NSQLite database instance to use.
@@ -122,10 +122,10 @@ func (s *Server) Start() error {
 		Handler: mux,
 	}
 
-	s.Logger.InfoNs(log.NsServer, "server started at "+localAddr, log.KV{
-		"listenHost": s.ListenHost,
-		"listenPort": s.ListenPort,
-	})
+	s.Logger.Info(context.Background(), "server started at "+localAddr,
+		"listenHost", s.ListenHost,
+		"listenPort", s.ListenPort,
+	)
 
 	err := s.server.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {

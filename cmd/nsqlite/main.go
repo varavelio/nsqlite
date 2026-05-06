@@ -44,6 +44,7 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		"listenHost", conf.ListenHost,
 		"listenPort", conf.ListenPort,
 		"txIdleTimeout", conf.TxIdleTimeout.String(),
+		"maxReadConns", conf.MaxReadConns,
 	)
 
 	dbStats := stats.NewDBStats()
@@ -54,6 +55,7 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		DBStats:       dbStats,
 		DataDir:       conf.DataDir,
 		TxIdleTimeout: conf.TxIdleTimeout,
+		MaxReadConns:  conf.MaxReadConns,
 	})
 	if err != nil {
 		return fmt.Errorf("error starting database: %w", err)

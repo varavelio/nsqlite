@@ -38,6 +38,9 @@ type Config struct {
 	// TxIdleTimeout if a transaction is not active for this duration, it
 	// will be rolled back.
 	TxIdleTimeout time.Duration
+	// MaxReadConns is the maximum number of read-only connections to the database.
+	// Default is 10, which is sufficient for most workloads.
+	MaxReadConns int
 }
 
 // DB represents the SQLite integration for NSQLite.
@@ -124,7 +127,8 @@ func NewDB(config Config) (*DB, error) {
 	}
 	readOnlyPool.SetConnMaxIdleTime(0)
 	readOnlyPool.SetConnMaxLifetime(0)
-	readOnlyPool.SetMaxIdleConns(100)
+	readOnlyPool.SetMaxIdleConns(config.MaxReadConns)
+	readOnlyPool.SetMaxOpenConns(config.MaxReadConns)
 
 	db := &DB{
 		Config:            config,

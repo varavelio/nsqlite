@@ -20,6 +20,7 @@ type Config struct {
 	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
 	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                            default:"9876"`
 	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
+	MaxReadConns  int           `arg:"--max-read-conns,env:NSQLITE_MAX_READ_CONNS"   help:"Maximum number of read-only database connections"                                                                            default:"10"`
 }
 
 // Version returns the CLI version banner.
@@ -51,6 +52,9 @@ func (c Config) ToArgs() []string {
 	}
 	if c.TxIdleTimeout != time.Duration(0) {
 		args = append(args, "--tx-idle-timeout", c.TxIdleTimeout.String())
+	}
+	if c.MaxReadConns != 0 {
+		args = append(args, "--max-read-conns", fmt.Sprintf("%d", c.MaxReadConns))
 	}
 
 	return args

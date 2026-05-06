@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"syscall"
 	"testing"
@@ -22,6 +23,8 @@ import (
 )
 
 const serverReadyTimeout = 10 * time.Second
+
+const maxServerStartAttempts = 5
 
 // ServerConfig defines the NSQLite process configuration for one E2E test.
 type ServerConfig struct {
@@ -36,9 +39,10 @@ type Server struct {
 	baseURL string
 	dataDir string
 
-	client *http.Client
-	cmd    *exec.Cmd
-	exitCh chan error
+	client  *http.Client
+	cmd     *exec.Cmd
+	exitCh  chan struct{}
+	exitErr error
 
 	stdout bytes.Buffer
 	stderr bytes.Buffer
@@ -52,10 +56,37 @@ func StartServer(t testing.TB, cfg ServerConfig) *Server {
 	t.Helper()
 
 	binaryPath := buildBinary(t)
-	port := getFreePort(t)
 	dataDir := t.TempDir()
-	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
+	for attempt := range maxServerStartAttempts {
+		server := startServerAttempt(t, binaryPath, dataDir, getFreePort(t), cfg)
+		if err := server.waitUntilReady(); err != nil {
+			_ = server.Stop()
+			if attempt+1 < maxServerStartAttempts && isAddressAlreadyInUseError(err) {
+				continue
+			}
+			require.NoError(t, err)
+		}
 
+		t.Cleanup(func() {
+			require.NoError(t, server.Stop())
+		})
+
+		return server
+	}
+
+	t.Fatalf("failed to start server after %d attempts", maxServerStartAttempts)
+	return nil
+}
+
+func startServerAttempt(
+	t testing.TB,
+	binaryPath, dataDir string,
+	port int,
+	cfg ServerConfig,
+) *Server {
+	t.Helper()
+
+	baseURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	cmd := exec.CommandContext(t.Context(), binaryPath)
 	server := &Server{
 		baseURL: baseURL,
@@ -64,7 +95,7 @@ func StartServer(t testing.TB, cfg ServerConfig) *Server {
 			Timeout: 5 * time.Second,
 		},
 		cmd:    cmd,
-		exitCh: make(chan error, 1),
+		exitCh: make(chan struct{}),
 	}
 
 	cmd.Dir = repoRoot()
@@ -90,15 +121,15 @@ func StartServer(t testing.TB, cfg ServerConfig) *Server {
 
 	require.NoError(t, cmd.Start())
 	go func() {
-		server.exitCh <- cmd.Wait()
+		server.exitErr = normalizeExitError(cmd.Wait())
+		close(server.exitCh)
 	}()
 
-	require.NoError(t, server.waitUntilReady())
-	t.Cleanup(func() {
-		require.NoError(t, server.Stop())
-	})
-
 	return server
+}
+
+func isAddressAlreadyInUseError(err error) bool {
+	return strings.Contains(err.Error(), "address already in use")
 }
 
 // BaseURL returns the HTTP base URL for the running server.
@@ -115,8 +146,8 @@ func (s *Server) DataDir() string {
 func (s *Server) Stop() error {
 	s.stopOnce.Do(func() {
 		select {
-		case err := <-s.exitCh:
-			s.stopErr = normalizeExitError(err)
+		case <-s.exitCh:
+			s.stopErr = s.exitErr
 			return
 		default:
 		}
@@ -130,17 +161,16 @@ func (s *Server) Stop() error {
 		}
 
 		select {
-		case err := <-s.exitCh:
-			s.stopErr = normalizeExitError(err)
+		case <-s.exitCh:
+			s.stopErr = s.exitErr
 		case <-time.After(5 * time.Second):
 			if killErr := s.cmd.Process.Kill(); killErr != nil &&
 				!errors.Is(killErr, os.ErrProcessDone) {
 				s.stopErr = fmt.Errorf("kill process after timeout: %w", killErr)
 				return
 			}
-			if err := <-s.exitCh; err != nil {
-				s.stopErr = fmt.Errorf("process killed after stop timeout: %w", err)
-			}
+			<-s.exitCh
+			s.stopErr = s.exitErr
 		}
 	})
 
@@ -200,10 +230,10 @@ func (s *Server) waitUntilReady() error {
 
 	for time.Now().Before(deadline) {
 		select {
-		case err := <-s.exitCh:
+		case <-s.exitCh:
 			return fmt.Errorf(
 				"server exited before becoming ready: %w\nstdout:\n%s\nstderr:\n%s",
-				err,
+				s.exitErr,
 				s.stdout.String(),
 				s.stderr.String(),
 			)

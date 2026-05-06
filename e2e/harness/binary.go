@@ -2,55 +2,52 @@ package harness
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	binaryPathOnce sync.Once
+	binaryPath     string
+	binaryPathErr  error
+)
+
+// BinaryPath returns the cached NSQLite test binary path.
+func BinaryPath(t testing.TB) string {
+	t.Helper()
+
+	binaryPathOnce.Do(func() {
+		cacheDir, err := os.MkdirTemp("", "nsqlite-e2e-*")
+		if err != nil {
+			binaryPathErr = fmt.Errorf("create temp binary dir: %w", err)
+			return
+		}
+
+		binaryPath = filepath.Join(
+			cacheDir,
+			fmt.Sprintf("nsqlite-%s-%s", runtime.GOOS, runtime.GOARCH),
+		)
+		binaryPathErr = buildBinaryLocked(binaryPath)
+	})
+
+	require.NoError(t, binaryPathErr)
+	return binaryPath
+}
+
 // buildBinary returns the cached NSQLite test binary path.
 func buildBinary(t testing.TB) string {
 	t.Helper()
-
-	cacheDir := filepath.Join(os.TempDir(), "nsqlite-e2e")
-	require.NoError(t, os.MkdirAll(cacheDir, 0o755))
-
-	binaryPath := filepath.Join(
-		cacheDir,
-		fmt.Sprintf("nsqlite-%s-%s", runtime.GOOS, runtime.GOARCH),
-	)
-	lockPath := binaryPath + ".lock"
-
-	for {
-		if fileExists(binaryPath) {
-			return binaryPath
-		}
-
-		lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if err == nil {
-			_ = lockFile.Close()
-			defer func() { _ = os.Remove(lockPath) }()
-			buildBinaryLocked(t, binaryPath)
-			return binaryPath
-		}
-
-		if !errors.Is(err, os.ErrExist) {
-			require.NoError(t, err)
-		}
-
-		time.Sleep(100 * time.Millisecond)
-	}
+	return BinaryPath(t)
 }
 
-func buildBinaryLocked(t testing.TB, binaryPath string) {
-	t.Helper()
-
+func buildBinaryLocked(binaryPath string) error {
 	tempBinaryPath := fmt.Sprintf("%s.tmp-%d", binaryPath, os.Getpid())
 	defer func() { _ = os.Remove(tempBinaryPath) }()
 
@@ -64,11 +61,12 @@ func buildBinaryLocked(t testing.TB, binaryPath string) {
 	)
 	cmd.Dir = repoRoot()
 	output, err := cmd.CombinedOutput()
-	require.NoError(t, err, "go build output:\n%s", string(output))
-	require.NoError(t, os.Rename(tempBinaryPath, binaryPath))
-}
+	if err != nil {
+		return fmt.Errorf("go build: %w\n%s", err, string(output))
+	}
+	if err := os.Rename(tempBinaryPath, binaryPath); err != nil {
+		return fmt.Errorf("rename built binary: %w", err)
+	}
 
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return err == nil
+	return nil
 }

@@ -13,9 +13,9 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Admin authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for full access."`
-	AuthTokenRW   string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"     help:"Read/write authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
-	AuthTokenRO   string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"     help:"Read-only authentication token(s). Use comma-separated plaintext or bcrypt/argon2 hashes for query read access only."`
+	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Admin authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for full access."`
+	AuthTokenRW   string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"     help:"Read/write authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
+	AuthTokenRO   string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"     help:"Read-only authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read access only."`
 	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"               help:"Directory for NSQLite database files"                                                                                        default:"./data"`
 	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
 	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                            default:"9876"`
@@ -126,61 +126,10 @@ func (c Config) ReadOnlyAuthTokens() []string {
 	return splitAuthTokens(c.AuthTokenRO)
 }
 
-// splitAuthTokens splits a comma-separated token list and trims each token.
+// splitAuthTokens splits a token list on whitespace.
 func splitAuthTokens(value string) []string {
 	if value == "" {
 		return nil
 	}
-
-	tokens := make([]string, 0, strings.Count(value, ",")+1)
-	start := 0
-	inArgon2 := false
-	checkedTokenPrefix := false
-	argon2DollarCount := 0
-	argon2IgnoredCommas := 0
-
-	appendToken := func(end int) {
-		token := strings.TrimSpace(value[start:end])
-		if token != "" {
-			tokens = append(tokens, token)
-		}
-	}
-
-	for i := range len(value) {
-		if !checkedTokenPrefix {
-			switch value[i] {
-			case ' ', '\t', '\n', '\r':
-				continue
-			case ',':
-				start = i + 1
-				continue
-			default:
-				inArgon2 = strings.HasPrefix(value[i:], "$argon2id$")
-				checkedTokenPrefix = true
-			}
-		}
-
-		switch value[i] {
-		case '$':
-			if inArgon2 {
-				argon2DollarCount++
-			}
-		case ',':
-			if inArgon2 && argon2DollarCount == 3 && argon2IgnoredCommas < 2 {
-				argon2IgnoredCommas++
-				continue
-			}
-
-			appendToken(i)
-			start = i + 1
-			inArgon2 = false
-			checkedTokenPrefix = false
-			argon2DollarCount = 0
-			argon2IgnoredCommas = 0
-		}
-	}
-
-	appendToken(len(value))
-
-	return tokens
+	return strings.Fields(value)
 }

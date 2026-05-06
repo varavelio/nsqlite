@@ -61,22 +61,22 @@ type Query struct {
 	Params []sqlite.QueryParam
 }
 
-// queryType represents the type of a given SQLite query.
-type queryType string
+// QueryType represents the type of a given SQLite query.
+type QueryType string
 
 const (
-	QueryTypeUnknown  queryType = "unknown"
-	QueryTypeRead     queryType = "read"
-	QueryTypeWrite    queryType = "write"
-	QueryTypeBegin    queryType = "begin"
-	QueryTypeCommit   queryType = "commit"
-	QueryTypeRollback queryType = "rollback"
+	QueryTypeUnknown  QueryType = "unknown"
+	QueryTypeRead     QueryType = "read"
+	QueryTypeWrite    QueryType = "write"
+	QueryTypeBegin    QueryType = "begin"
+	QueryTypeCommit   QueryType = "commit"
+	QueryTypeRollback QueryType = "rollback"
 )
 
 // QueryResult represents the result of a query.
 type QueryResult struct {
 	// For all queries
-	Type queryType
+	Type QueryType
 
 	// For begin queries
 	TxID string
@@ -238,9 +238,8 @@ func (db *DB) Close() error {
 	return nil
 }
 
-// detectQueryType detects the type of query between read, write, begin, commit,
-// and rollback.
-func (db *DB) detectQueryType(ctx context.Context, query string) (queryType, error) {
+// ClassifyQuery detects whether a query is a read, write, begin, commit, or rollback.
+func (db *DB) ClassifyQuery(ctx context.Context, query string) (QueryType, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(query))
 
 	switch {
@@ -282,7 +281,7 @@ func (db *DB) Query(ctx context.Context, query Query) (QueryResult, error) {
 
 // query is the underlying logic for Query.
 func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
-	typeOfQuery, err := db.detectQueryType(ctx, query.Query)
+	typeOfQuery, err := db.ClassifyQuery(ctx, query.Query)
 	if err != nil {
 		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
 	}

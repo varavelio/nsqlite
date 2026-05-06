@@ -48,8 +48,8 @@ func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken, serverToken stri
 		return clientToken == serverToken
 	}
 
-	if tokenAlgo == cryptoutil.HashAlgoArgon2 {
-		return cryptoutil.Argon2CheckHash(clientToken, serverToken)
+	if tokenAlgo == cryptoutil.HashAlgoArgon2ID {
+		return cryptoutil.Argon2IDCheckHash(clientToken, serverToken)
 	}
 
 	if tokenAlgo == cryptoutil.HashAlgoBcrypt {

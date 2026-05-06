@@ -6,38 +6,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestArgon2Hardcoded(t *testing.T) {
-	tests := []struct {
-		name     string
-		password string
-		hash     string
-	}{
-		{
-			name:     "argon2i",
-			password: "SecureP@ssw0rd!",
-			hash:     "$argon2i$v=19$m=16,t=2,p=1$YmdnaGIzcjQyMzU0d2VyZ2Y$Bi7u7sDIGW2enDW/y4ZhmQ",
-		},
-		{
-			name:     "argon2id",
-			password: "SecureP@ssw0rd!",
-			hash:     "$argon2id$v=19$m=16,t=2,p=1$YmdnaGIzcjQyMzU0d2VyZ2Y$6FgOQLM8ZX1kwlXz4Ekhgw",
-		},
-	}
+func TestArgon2IDHardcoded(t *testing.T) {
+	password := "SecureP@ssw0rd!"
+	hash := "$argon2id$v=19$m=16,t=2,p=1$YmdnaGIzcjQyMzU0d2VyZ2Y$6FgOQLM8ZX1kwlXz4Ekhgw"
 
-	for _, tt := range tests {
-		t.Run("Check Hash", func(t *testing.T) {
-			assert.True(t, Argon2CheckHash(tt.password, tt.hash))
-		})
+	t.Run("Check Hash", func(t *testing.T) {
+		assert.True(t, Argon2IDCheckHash(password, hash))
+	})
 
-		t.Run("Generate And Check Hash", func(t *testing.T) {
-			newHash, err := Argon2GenerateHash(tt.password)
-			assert.NoError(t, err)
-			assert.True(t, Argon2CheckHash(tt.password, newHash))
-		})
-	}
+	t.Run("Generate And Check Hash", func(t *testing.T) {
+		newHash, err := Argon2IDGenerateHash(password)
+		assert.NoError(t, err)
+		assert.True(t, Argon2IDCheckHash(password, newHash))
+	})
 }
 
-func TestArgon2GenerateHash(t *testing.T) {
+func TestArgon2IDGenerateHash(t *testing.T) {
 	tests := []struct {
 		name     string
 		password string
@@ -51,7 +35,7 @@ func TestArgon2GenerateHash(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			hash, err := Argon2GenerateHash(tt.password)
+			hash, err := Argon2IDGenerateHash(tt.password)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -62,9 +46,9 @@ func TestArgon2GenerateHash(t *testing.T) {
 	}
 }
 
-func TestArgon2CheckHash(t *testing.T) {
+func TestArgon2IDCheckHash(t *testing.T) {
 	password := "SecureP@ssw0rd!"
-	hash, err := Argon2GenerateHash(password)
+	hash, err := Argon2IDGenerateHash(password)
 	assert.NoError(t, err)
 
 	tests := []struct {
@@ -82,7 +66,7 @@ func TestArgon2CheckHash(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := Argon2CheckHash(tt.password, tt.hash)
+			result := Argon2IDCheckHash(tt.password, tt.hash)
 			assert.Equal(t, tt.want, result)
 		})
 	}

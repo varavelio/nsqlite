@@ -41,6 +41,26 @@ func TestParse(t *testing.T) {
 
 		assert.Equal(t, []string{"admin-1", "admin-2"}, cfg.AuthTokens())
 	})
+
+	t.Run("parses multiple tokens when argon2 hashes are present", func(t *testing.T) {
+		const (
+			adminArgon2 = "$argon2id$v=19$m=16,t=2,p=1$YWRtaW4tc2FsdA$YWRtaW4taGFzaA"
+			rwArgon2    = "$argon2id$v=19$m=32,t=3,p=2$cnctc2FsdA$cnctaGFzaA"
+			roArgon2    = "$argon2id$v=19$m=64,t=4,p=3$cm8tc2FsdA$cm8taGFzaA"
+		)
+
+		cfg, err := Parse([]string{
+			"--data-dir", t.TempDir(),
+			"--auth-token", strings.Join([]string{"admin-1", adminArgon2, "admin-2"}, ","),
+			"--auth-token-rw", strings.Join([]string{"rw-1", rwArgon2, "rw-2"}, ","),
+			"--auth-token-ro", strings.Join([]string{"ro-1", roArgon2, "ro-2"}, ","),
+		})
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"admin-1", adminArgon2, "admin-2"}, cfg.AuthTokens())
+		assert.Equal(t, []string{"rw-1", rwArgon2, "rw-2"}, cfg.ReadWriteAuthTokens())
+		assert.Equal(t, []string{"ro-1", roArgon2, "ro-2"}, cfg.ReadOnlyAuthTokens())
+	})
 }
 
 func TestSplitAuthTokens(t *testing.T) {
@@ -82,6 +102,27 @@ func TestSplitAuthTokens(t *testing.T) {
 
 	t.Run("trims tabs and newlines only at token edges", func(t *testing.T) {
 		assert.Equal(t, []string{"admin", "rw"}, splitAuthTokens("\nadmin\t,\trw\n"))
+	})
+
+	t.Run("does not split inside argon2 parameter lists", func(t *testing.T) {
+		const (
+			argon2A = "$argon2id$v=19$m=16,t=2,p=1$YWJjZA$ZWZnaA"
+			argon2B = "$argon2id$v=19$m=32,t=3,p=2$aWprbA$bW5vcA"
+		)
+
+		assert.Equal(
+			t,
+			[]string{"admin", argon2A, argon2B, "rw"},
+			splitAuthTokens(strings.Join([]string{"admin", argon2A, argon2B, "rw"}, ",")),
+		)
+	})
+
+	t.Run("does not swallow following tokens after a truncated argon2 hash", func(t *testing.T) {
+		assert.Equal(
+			t,
+			[]string{"admin", "$argon2id$v=19$m=16,t=2,p=1", "rw"},
+			splitAuthTokens("admin,$argon2id$v=19$m=16,t=2,p=1,rw"),
+		)
 	})
 }
 

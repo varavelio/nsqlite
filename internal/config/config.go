@@ -132,16 +132,55 @@ func splitAuthTokens(value string) []string {
 		return nil
 	}
 
-	parts := strings.Split(value, ",")
+	tokens := make([]string, 0, strings.Count(value, ",")+1)
+	start := 0
+	inArgon2 := false
+	checkedTokenPrefix := false
+	argon2DollarCount := 0
+	argon2IgnoredCommas := 0
 
-	tokens := make([]string, 0, len(parts))
-	for _, part := range parts {
-		token := strings.TrimSpace(part)
-		if token == "" {
-			continue
+	appendToken := func(end int) {
+		token := strings.TrimSpace(value[start:end])
+		if token != "" {
+			tokens = append(tokens, token)
 		}
-		tokens = append(tokens, token)
 	}
+
+	for i := range len(value) {
+		if !checkedTokenPrefix {
+			switch value[i] {
+			case ' ', '\t', '\n', '\r':
+				continue
+			case ',':
+				start = i + 1
+				continue
+			default:
+				inArgon2 = strings.HasPrefix(value[i:], "$argon2id$")
+				checkedTokenPrefix = true
+			}
+		}
+
+		switch value[i] {
+		case '$':
+			if inArgon2 {
+				argon2DollarCount++
+			}
+		case ',':
+			if inArgon2 && argon2DollarCount == 3 && argon2IgnoredCommas < 2 {
+				argon2IgnoredCommas++
+				continue
+			}
+
+			appendToken(i)
+			start = i + 1
+			inArgon2 = false
+			checkedTokenPrefix = false
+			argon2DollarCount = 0
+			argon2IgnoredCommas = 0
+		}
+	}
+
+	appendToken(len(value))
 
 	return tokens
 }

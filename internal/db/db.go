@@ -15,7 +15,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/orsinium-labs/enum"
 	"github.com/varavelio/nsqlite/internal/log"
-	"github.com/varavelio/nsqlite/internal/sqlitec"
+	"github.com/varavelio/nsqlite/internal/sqlite"
 	"github.com/varavelio/nsqlite/internal/sqlitedrv"
 	"github.com/varavelio/nsqlite/internal/stats"
 	"github.com/varavelio/nsqlite/internal/util/syncutil"
@@ -59,7 +59,7 @@ type DB struct {
 type Query struct {
 	TxID   string
 	Query  string
-	Params []sqlitec.QueryParam
+	Params []sqlite.QueryParam
 }
 
 // queryType represents the type of a given SQLite query.
@@ -150,13 +150,13 @@ func NewDB(config Config) (*DB, error) {
 
 // getRawConn returns a raw connection from *sql.DB and a function to return
 // it to the pool.
-func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlitec.Conn, func() error, error) {
+func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlite.Conn, func() error, error) {
 	poolConn, err := dbPool.Conn(ctx)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get connection from pool: %w", err)
 	}
 
-	var rawConn *sqlitec.Conn
+	var rawConn *sqlite.Conn
 	err = poolConn.Raw(func(driverConn any) error {
 		dc, ok := driverConn.(*sqlitedrv.Conn)
 		if !ok {
@@ -175,13 +175,13 @@ func (db *DB) getRawConn(ctx context.Context, dbPool *sql.DB) (*sqlitec.Conn, fu
 
 // getReadWriteRawConn returns the read-write connection and a function to
 // return it to the pool.
-func (db *DB) getReadWriteRawConn(ctx context.Context) (*sqlitec.Conn, func() error, error) {
+func (db *DB) getReadWriteRawConn(ctx context.Context) (*sqlite.Conn, func() error, error) {
 	return db.getRawConn(ctx, db.readWritePool)
 }
 
 // getReadOnlyRawConn returns the read-only connection and a function to return it
 // to the pool.
-func (db *DB) getReadOnlyRawConn(ctx context.Context) (*sqlitec.Conn, func() error, error) {
+func (db *DB) getReadOnlyRawConn(ctx context.Context) (*sqlite.Conn, func() error, error) {
 	return db.getRawConn(ctx, db.readOnlyPool)
 }
 
@@ -444,7 +444,7 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 // will use the read-only connection. If a transaction ID is provided, it will
 // use the read-write connection.
 func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, error) {
-	var conn *sqlitec.Conn
+	var conn *sqlite.Conn
 	var returnConn func() error
 	var err error
 

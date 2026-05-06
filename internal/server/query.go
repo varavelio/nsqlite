@@ -7,7 +7,7 @@ import (
 
 	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/log"
-	"github.com/varavelio/nsqlite/internal/sqlitec"
+	"github.com/varavelio/nsqlite/internal/sqlite"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
@@ -41,9 +41,9 @@ type Response struct {
 
 // Query represents a single query within a request.
 type Query struct {
-	TxID   string               `json:"txId"`
-	Query  string               `json:"query"`
-	Params []sqlitec.QueryParam `json:"params"`
+	TxID   string              `json:"txId"`
+	Query  string              `json:"query"`
+	Params []sqlite.QueryParam `json:"params"`
 }
 
 // queryHandler is the HTTP handler for the /query endpoint that

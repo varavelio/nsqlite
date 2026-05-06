@@ -11,7 +11,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
-	"github.com/varavelio/nsqlite/internal/sqlitec"
+	"github.com/varavelio/nsqlite/internal/sqlite"
 )
 
 var (
@@ -72,12 +72,12 @@ func (connector *Connector) Driver() driver.Driver {
 
 // Conn implements the database/sql/driver.Conn interface.
 type Conn struct {
-	conn *sqlitec.Conn
+	conn *sqlite.Conn
 }
 
 // newConn creates a new connection to the SQLite database.
 func newConn(dsn string, postConnectQueries []string) (driver.Conn, error) {
-	conn, err := sqlitec.Open(dsn)
+	conn, err := sqlite.Open(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open connection: %w", err)
 	}
@@ -94,7 +94,7 @@ func newConn(dsn string, postConnectQueries []string) (driver.Conn, error) {
 }
 
 // RawConn returns the underlying SQLite C API connection.
-func (conn *Conn) RawConn() *sqlitec.Conn {
+func (conn *Conn) RawConn() *sqlite.Conn {
 	return conn.conn
 }
 

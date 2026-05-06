@@ -3,7 +3,7 @@
 //
 //   - https://www.sqlite.org/cintro.html
 //   - https://www.sqlite.org/c3ref/intro.html
-package sqlitec
+package sqlite
 
 // #include "sqlite.c"
 import "C"

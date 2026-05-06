@@ -17,8 +17,9 @@ import (
 // version's zip file and its SHA3-256 hash from this page: https://www.sqlite.org/download.html
 
 const (
-	zipURL = "https://www.sqlite.org/2026/sqlite-amalgamation-3530100.zip"
-	zipSHA = "3c07136e4f6b5dd0c395be86455014039597bc65b6851f7111e88f71b6e06114"
+	zipURL  = "https://www.sqlite.org/2026/sqlite-amalgamation-3530100.zip"
+	zipSHA  = "3c07136e4f6b5dd0c395be86455014039597bc65b6851f7111e88f71b6e06114"
+	destDir = "./internal/sqlite"
 )
 
 func main() {
@@ -52,7 +53,6 @@ func main() {
 		"sqlite3.h":    true,
 		"sqlite3ext.h": true,
 	}
-	destDir := filepath.Join("internal", "sqlitec")
 
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
 		panic(fmt.Errorf("failed to create %s: %w", destDir, err))

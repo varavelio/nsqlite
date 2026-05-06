@@ -1,4 +1,4 @@
-package sqlitec
+package sqlite
 
 import (
 	"fmt"

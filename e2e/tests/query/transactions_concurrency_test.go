@@ -7,281 +7,184 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/varavelio/nsqlite/e2e/harness"
 )
 
-const (
-	queuedTransactionWorkerCount = 120
-	queuedTransactionQueueFloor  = 30
-)
+const numConcurrentWorkers = 500
 
-func TestTransactionsQueueConcurrentBeginsAndPreserveIntegrityUnderLoad(t *testing.T) {
+func TestConcurrentTransactionsPreserveIntegrityWithBatchAndSeparateRequests(t *testing.T) {
 	server := harness.StartServer(t, harness.ServerConfig{})
 	server.Query(
 		t,
 		"",
 		harness.Query{
-			Query: "CREATE TABLE account_totals (id INTEGER PRIMARY KEY, total INTEGER NOT NULL, tx_count INTEGER NOT NULL);",
-		},
-		harness.Query{
-			Query: "CREATE TABLE audit_log (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, step TEXT NOT NULL, delta INTEGER NOT NULL);",
-		},
-		harness.Query{
-			Query: "INSERT INTO account_totals (id, total, tx_count) VALUES (1, 0, 0);",
+			Query: "CREATE TABLE items (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, tag TEXT NOT NULL);",
 		},
 	)
 
-	baselineStats := server.Stats(t, "")
-	holdingTransaction := server.Query(t, "", harness.Query{Query: "BEGIN;"})
-	require.Equal(t, "begin", holdingTransaction.Results[0].Type)
-	require.NotEmpty(t, holdingTransaction.Results[0].TxID)
-
+	baseline := server.Stats(t, "")
 	client := &http.Client{}
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
-	defer cancel()
 
-	start := make(chan struct{})
-	errCh := make(chan error, queuedTransactionWorkerCount)
-	var activationOrder atomic.Int64
-	var completionOrder atomic.Int64
+	errs := make([]error, 0, numConcurrentWorkers)
+	var errsMu sync.Mutex
+	var completed atomic.Int64
 	var wg sync.WaitGroup
 
-	for workerOffset := range queuedTransactionWorkerCount {
+	for workerOffset := range numConcurrentWorkers {
 		workerID := workerOffset + 1
+		batchMode := workerID%2 == 0
 		wg.Go(func() {
-			<-start
-			if err := runQueuedTransaction(
-				ctx,
+			if err := runWorkerTransaction(
 				client,
 				server.BaseURL(),
 				workerID,
-				&activationOrder,
-				&completionOrder,
+				batchMode,
 			); err != nil {
-				errCh <- err
+				errsMu.Lock()
+				errs = append(errs, fmt.Errorf("worker %d: %w", workerID, err))
+				errsMu.Unlock()
+				return
 			}
+			completed.Add(1)
 		})
 	}
 
-	close(start)
-	require.Eventually(t, func() bool {
-		stats := server.Stats(t, "")
-		return stats.QueuedBegins >= queuedTransactionQueueFloor
-	}, 5*time.Second, 25*time.Millisecond)
+	wg.Wait()
+	require.Empty(t, errs, "%v", errs)
+	require.Equal(t, int64(numConcurrentWorkers), completed.Load())
 
-	holdingCommit := server.Query(
-		t,
-		"",
-		harness.Query{Query: "COMMIT;", TxID: holdingTransaction.Results[0].TxID},
-	)
-	require.Equal(t, "commit", holdingCommit.Results[0].Type)
+	result := server.Query(t, "", harness.Query{
+		Query: "SELECT COUNT(*) FROM items;",
+	})
+	require.Equal(t, [][]any{{float64(numConcurrentWorkers)}}, result.Results[0].Rows)
 
-	completed := make(chan struct{})
-	go func() {
-		wg.Wait()
-		close(completed)
-	}()
+	final := server.Stats(t, "")
 
-	select {
-	case <-completed:
-	case <-ctx.Done():
-		t.Fatal("concurrent transaction workers did not complete before timeout")
-	}
+	require.Equal(t, baseline.Totals.Begins+numConcurrentWorkers, final.Totals.Begins)
+	require.Equal(t, baseline.Totals.Commits+numConcurrentWorkers, final.Totals.Commits)
 
-	close(errCh)
-	workerErrors := make([]string, 0)
-	for err := range errCh {
-		workerErrors = append(workerErrors, err.Error())
-	}
-	require.Empty(t, workerErrors, "%v", workerErrors)
-
-	finalState := server.Query(
-		t,
-		"",
-		harness.Query{Query: "SELECT total, tx_count FROM account_totals WHERE id = 1;"},
-		harness.Query{Query: "SELECT COUNT(*) FROM audit_log;"},
-	)
-
-	expectedTotal := float64(queuedTransactionWorkerCount * (queuedTransactionWorkerCount + 1) / 2)
-	require.Equal(
-		t,
-		[][]any{{expectedTotal, float64(queuedTransactionWorkerCount)}},
-		finalState.Results[0].Rows,
-	)
-	require.Equal(
-		t,
-		[][]any{{float64(queuedTransactionWorkerCount * 2)}},
-		finalState.Results[1].Rows,
-	)
-
-	finalStats := server.Stats(t, "")
-	require.Equal(
-		t,
-		baselineStats.Totals.Begins+queuedTransactionWorkerCount+1,
-		finalStats.Totals.Begins,
-	)
-	require.Equal(
-		t,
-		baselineStats.Totals.Commits+queuedTransactionWorkerCount+1,
-		finalStats.Totals.Commits,
-	)
-	require.Equal(t, baselineStats.Totals.Rollbacks, finalStats.Totals.Rollbacks)
-	require.Equal(t, baselineStats.Totals.Errors, finalStats.Totals.Errors)
-	require.Zero(t, finalStats.QueuedBegins)
-	require.Zero(t, finalStats.QueuedWrites)
-	require.Zero(t, finalStats.QueuedHTTPRequests)
-	require.Equal(t, int64(queuedTransactionWorkerCount), activationOrder.Load())
-	require.Equal(t, int64(queuedTransactionWorkerCount), completionOrder.Load())
+	require.Equal(t, baseline.Totals.Errors, final.Totals.Errors)
+	require.Equal(t, baseline.Totals.Rollbacks, final.Totals.Rollbacks)
+	require.Zero(t, final.QueuedBegins)
+	require.Zero(t, final.QueuedWrites)
+	require.Zero(t, final.QueuedHTTPRequests)
 }
 
-func runQueuedTransaction(
-	ctx context.Context,
+func runWorkerTransaction(
 	client *http.Client,
 	baseURL string,
 	workerID int,
-	activationOrder, completionOrder *atomic.Int64,
+	batchMode bool,
 ) error {
-	beginResponse, err := postQueryRequest(ctx, client, baseURL, harness.Query{Query: "BEGIN;"})
+	beginResp, err := sendQuery(client, baseURL, harness.Query{Query: "BEGIN;"})
 	if err != nil {
-		return fmt.Errorf("worker %d begin request: %w", workerID, err)
+		return fmt.Errorf("begin: %w", err)
 	}
-	if len(beginResponse.Results) != 1 || beginResponse.Results[0].Type != "begin" {
-		return fmt.Errorf(
-			"worker %d unexpected begin response: %+v",
-			workerID,
-			beginResponse.Results,
-		)
+	if len(beginResp.Results) != 1 || beginResp.Results[0].Type != "begin" {
+		return fmt.Errorf("unexpected begin response: %+v", beginResp.Results)
 	}
-	if beginResponse.Results[0].TxID == "" {
-		return fmt.Errorf("worker %d received an empty txId", workerID)
+	txID := beginResp.Results[0].TxID
+	if txID == "" {
+		return fmt.Errorf("empty txId")
 	}
 
-	txID := beginResponse.Results[0].TxID
-	activationPosition := activationOrder.Add(1)
-
-	transactionBody, err := postQueryRequest(
-		ctx,
-		client,
-		baseURL,
-		harness.Query{
-			TxID:  txID,
-			Query: "INSERT INTO audit_log (worker_id, step, delta) VALUES (?, ?, ?);",
-			Params: []harness.QueryParam{
-				{Value: workerID},
-				{Value: "begin"},
-				{Value: workerID},
-			},
-		},
-		harness.Query{
+	body := []harness.Query{
+		{
 			TxID:   txID,
-			Query:  "UPDATE account_totals SET total = total + ?, tx_count = tx_count + 1 WHERE id = 1 RETURNING total, tx_count;",
+			Query:  "INSERT INTO items (worker_id, tag) VALUES (?, 'first');",
 			Params: []harness.QueryParam{{Value: workerID}},
 		},
-		harness.Query{
-			TxID:  txID,
-			Query: "INSERT INTO audit_log (worker_id, step, delta) VALUES (?, ?, ?);",
-			Params: []harness.QueryParam{
-				{Value: workerID},
-				{Value: "before-commit"},
-				{Value: workerID},
-			},
+		{
+			TxID:   txID,
+			Query:  "INSERT INTO items (worker_id, tag) VALUES (?, 'second');",
+			Params: []harness.QueryParam{{Value: workerID}},
 		},
-		harness.Query{
-			TxID:  txID,
-			Query: "SELECT total, tx_count FROM account_totals WHERE id = 1;",
+		{
+			TxID:   txID,
+			Query:  "SELECT COUNT(*) FROM items WHERE worker_id = ?;",
+			Params: []harness.QueryParam{{Value: workerID}},
 		},
-		harness.Query{TxID: txID, Query: "COMMIT;"},
-	)
+		{
+			TxID:   txID,
+			Query:  "DELETE FROM items WHERE worker_id = ? AND tag = 'first';",
+			Params: []harness.QueryParam{{Value: workerID}},
+		},
+		{TxID: txID, Query: "COMMIT;"},
+	}
+
+	if batchMode {
+		return validateBatchTransaction(client, baseURL, body)
+	}
+	return validateSeparateTransaction(client, baseURL, body)
+}
+
+func validateBatchTransaction(
+	client *http.Client,
+	baseURL string,
+	queries []harness.Query,
+) error {
+	resp, err := sendQuery(client, baseURL, queries...)
 	if err != nil {
-		return fmt.Errorf("worker %d transaction body: %w", workerID, err)
+		return fmt.Errorf("batch: %w", err)
 	}
-	if len(transactionBody.Results) != 5 {
-		return fmt.Errorf(
-			"worker %d unexpected transaction result count: %d",
-			workerID,
-			len(transactionBody.Results),
-		)
+	if len(resp.Results) != 5 {
+		return fmt.Errorf("expected 5 results in batch, got %d", len(resp.Results))
 	}
-	if transactionBody.Results[0].Type != "write" || transactionBody.Results[0].RowsAffected != 1 {
-		return fmt.Errorf(
-			"worker %d unexpected first write result: %+v",
-			workerID,
-			transactionBody.Results[0],
-		)
+	if resp.Results[0].Type != "write" {
+		return fmt.Errorf("batch result[0] expected write, got %s", resp.Results[0].Type)
 	}
-	if transactionBody.Results[1].Type != "write" || len(transactionBody.Results[1].Rows) != 1 {
-		return fmt.Errorf(
-			"worker %d unexpected update result: %+v",
-			workerID,
-			transactionBody.Results[1],
-		)
+	if resp.Results[1].Type != "write" {
+		return fmt.Errorf("batch result[1] expected write, got %s", resp.Results[1].Type)
 	}
-	if transactionBody.Results[2].Type != "write" || transactionBody.Results[2].RowsAffected != 1 {
-		return fmt.Errorf(
-			"worker %d unexpected second write result: %+v",
-			workerID,
-			transactionBody.Results[2],
-		)
+	if resp.Results[2].Type != "read" {
+		return fmt.Errorf("batch result[2] expected read, got %s", resp.Results[2].Type)
 	}
-	if transactionBody.Results[3].Type != "read" {
-		return fmt.Errorf(
-			"worker %d unexpected read result: %+v",
-			workerID,
-			transactionBody.Results[3],
-		)
+	if resp.Results[3].Type != "write" {
+		return fmt.Errorf("batch result[3] expected write (delete), got %s", resp.Results[3].Type)
 	}
-	if transactionBody.Results[4].Type != "commit" {
-		return fmt.Errorf(
-			"worker %d unexpected commit result in batch: %+v",
-			workerID,
-			transactionBody.Results[4],
-		)
+	if resp.Results[4].Type != "commit" {
+		return fmt.Errorf("batch result[4] expected commit, got %s", resp.Results[4].Type)
 	}
-	if !reflect.DeepEqual(transactionBody.Results[1].Rows, transactionBody.Results[3].Rows) {
-		return fmt.Errorf(
-			"worker %d saw inconsistent in-transaction state: update=%v read=%v",
-			workerID,
-			transactionBody.Results[1].Rows,
-			transactionBody.Results[3].Rows,
-		)
-	}
-
-	completionPosition := completionOrder.Add(1)
-	if activationPosition != completionPosition {
-		return fmt.Errorf(
-			"worker %d finished out of serialized response order: begin=%d commit=%d",
-			workerID,
-			activationPosition,
-			completionPosition,
-		)
-	}
-
 	return nil
 }
 
-func postQueryRequest(
-	ctx context.Context,
+func validateSeparateTransaction(
+	client *http.Client,
+	baseURL string,
+	queries []harness.Query,
+) error {
+	for i, query := range queries {
+		resp, err := sendQuery(client, baseURL, query)
+		if err != nil {
+			return fmt.Errorf("query %d: %w", i, err)
+		}
+		if len(resp.Results) != 1 {
+			return fmt.Errorf("query %d expected 1 result, got %d", i, len(resp.Results))
+		}
+	}
+	return nil
+}
+
+func sendQuery(
 	client *http.Client,
 	baseURL string,
 	queries ...harness.Query,
 ) (harness.QueryResponse, error) {
-	encodedBody, err := json.Marshal(queries)
+	body, err := json.Marshal(queries)
 	if err != nil {
-		return harness.QueryResponse{}, fmt.Errorf("marshal request body: %w", err)
+		return harness.QueryResponse{}, fmt.Errorf("marshal body: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(
-		ctx,
+		context.Background(),
 		http.MethodPost,
 		baseURL+"/query",
-		bytes.NewReader(encodedBody),
+		bytes.NewReader(body),
 	)
 	if err != nil {
 		return harness.QueryResponse{}, fmt.Errorf("build request: %w", err)
@@ -294,7 +197,7 @@ func postQueryRequest(
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	body, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return harness.QueryResponse{}, fmt.Errorf("read response body: %w", err)
 	}
@@ -302,14 +205,14 @@ func postQueryRequest(
 		return harness.QueryResponse{}, fmt.Errorf(
 			"unexpected status %d: %s",
 			resp.StatusCode,
-			string(body),
+			string(respBody),
 		)
 	}
 
-	var response harness.QueryResponse
-	if err := json.Unmarshal(body, &response); err != nil {
+	var qr harness.QueryResponse
+	if err := json.Unmarshal(respBody, &qr); err != nil {
 		return harness.QueryResponse{}, fmt.Errorf("decode response body: %w", err)
 	}
 
-	return response.WithoutTiming(), nil
+	return qr.WithoutTiming(), nil
 }

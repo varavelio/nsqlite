@@ -14,7 +14,8 @@
     "vscode": {
       "extensions": [
         "golang.go",
-        "dprint.dprint"
+        "dprint.dprint",
+        "JacobPfeifer.pfeifer-hurl"
       ],
       "settings": {
         "editor.formatOnSave": true,

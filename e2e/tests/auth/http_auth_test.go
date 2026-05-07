@@ -2,12 +2,12 @@ package auth_test
 
 import (
 	"bytes"
-	"encoding/json"
 	"io"
 	"net/http"
 	"strings"
 	"testing"
 
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/require"
 	"github.com/varavelio/nsqlite/e2e/harness"
 	"github.com/varavelio/nsqlite/internal/util/cryptoutil"

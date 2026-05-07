@@ -1,9 +1,10 @@
 package httputil
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/goccy/go-json"
 )
 
 // WriteJSON writes a JSON response to the given http.ResponseWriter.

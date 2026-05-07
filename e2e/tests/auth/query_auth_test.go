@@ -28,6 +28,7 @@ func TestReadOnlyTokenCanReadButCannotWrite(t *testing.T) {
 	t.Parallel()
 
 	server := harness.StartServer(t, harness.ServerConfig{
+		AuthTokenRW: "read-write-token",
 		AuthTokenRO: "read-only-token",
 	})
 
@@ -53,4 +54,11 @@ func TestReadOnlyTokenCanReadButCannotWrite(t *testing.T) {
 	require.Equal(t, "Forbidden", apiError.Error)
 	require.Equal(t, "Forbidden", apiError.Message)
 	require.NotEmpty(t, apiError.ID)
+
+	allowedWrite := server.Query(t, "read-write-token", harness.Query{
+		Query: "CREATE TABLE allowed (id INTEGER PRIMARY KEY);",
+	})
+	require.Len(t, allowedWrite.Results, 1)
+	require.Equal(t, "write", allowedWrite.Results[0].Type)
+	require.Empty(t, allowedWrite.Results[0].Error)
 }

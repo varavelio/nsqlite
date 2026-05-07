@@ -8,6 +8,21 @@ import (
 	"github.com/varavelio/nsqlite/e2e/harness"
 )
 
+func requireSuccessfulQueryResult(
+	t testing.TB,
+	response harness.QueryResponse,
+	expectedType string,
+) harness.QueryResult {
+	t.Helper()
+
+	require.Len(t, response.Results, 1)
+	result := response.Results[0]
+	require.Equal(t, expectedType, result.Type)
+	require.Empty(t, result.Error)
+
+	return result
+}
+
 func TestTransactionsCommitMakesChangesVisibleOutsideTheTransaction(t *testing.T) {
 	t.Parallel()
 
@@ -79,6 +94,112 @@ func TestTransactionsRollbackDiscardsChanges(t *testing.T) {
 
 	afterRollback := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM users;"})
 	require.Equal(t, [][]any{{float64(0)}}, afterRollback.Results[0].Rows)
+}
+
+func TestTransactionsAllowDependentDDLSchemaChangesBeforeCommit(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN TRANSACTION;"})
+	beginResult := requireSuccessfulQueryResult(t, begin, "begin")
+	txID := beginResult.TxID
+	require.NotEmpty(t, txID)
+
+	parent := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE parent (id TEXT PRIMARY KEY);",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, parent, "write")
+
+	child := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, FOREIGN KEY (parent_id) REFERENCES parent(id));",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, child, "write")
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
+
+	schema := server.Query(t, "", harness.Query{
+		Query: "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('parent', 'child') ORDER BY name;",
+	})
+	schemaResult := requireSuccessfulQueryResult(t, schema, "read")
+	require.Equal(t, [][]any{{"child"}, {"parent"}}, schemaResult.Rows)
+}
+
+func TestTransactionsRollbackDependentDDLSchemaChangesAtomically(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	beginResult := requireSuccessfulQueryResult(t, begin, "begin")
+	txID := beginResult.TxID
+	require.NotEmpty(t, txID)
+
+	parent := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE parent (id TEXT PRIMARY KEY);",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, parent, "write")
+
+	child := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, FOREIGN KEY (parent_id) REFERENCES parent(id));",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, child, "write")
+
+	rollback := server.Query(t, "", harness.Query{Query: "ROLLBACK;", TxID: txID})
+	requireSuccessfulQueryResult(t, rollback, "rollback")
+
+	schema := server.Query(t, "", harness.Query{
+		Query: "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name IN ('parent', 'child');",
+	})
+	schemaResult := requireSuccessfulQueryResult(t, schema, "read")
+	require.Equal(t, [][]any{{float64(0)}}, schemaResult.Rows)
+}
+
+func TestTransactionsAllowDMLAgainstUncommittedSchemaChanges(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	beginResult := requireSuccessfulQueryResult(t, begin, "begin")
+	txID := beginResult.TxID
+	require.NotEmpty(t, txID)
+
+	create := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT NOT NULL);",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, create, "write")
+
+	insert := server.Query(t, "", harness.Query{
+		Query: "INSERT INTO users (id, email) VALUES ('u1', 'u1@example.com');",
+		TxID:  txID,
+	})
+	insertResult := requireSuccessfulQueryResult(t, insert, "write")
+	require.Equal(t, int64(1), insertResult.RowsAffected)
+
+	insideTransaction := server.Query(t, "", harness.Query{
+		Query: "SELECT email FROM users WHERE id = 'u1';",
+		TxID:  txID,
+	})
+	insideTransactionResult := requireSuccessfulQueryResult(t, insideTransaction, "read")
+	require.Equal(t, [][]any{{"u1@example.com"}}, insideTransactionResult.Rows)
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
+
+	afterCommit := server.Query(
+		t,
+		"",
+		harness.Query{Query: "SELECT email FROM users WHERE id = 'u1';"},
+	)
+	afterCommitResult := requireSuccessfulQueryResult(t, afterCommit, "read")
+	require.Equal(t, [][]any{{"u1@example.com"}}, afterCommitResult.Rows)
 }
 
 func TestTransactionsRejectInvalidTransactionOperations(t *testing.T) {

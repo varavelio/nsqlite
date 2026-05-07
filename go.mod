@@ -5,6 +5,7 @@ go 1.26
 require (
 	github.com/alexedwards/argon2id v1.0.0
 	github.com/alexflint/go-arg v1.5.1
+	github.com/goccy/go-json v0.10.6
 	github.com/google/uuid v1.6.0
 	github.com/stretchr/testify v1.10.0
 	github.com/varavelio/tinta v0.2.0

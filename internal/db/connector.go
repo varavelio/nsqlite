@@ -24,7 +24,7 @@ func newConnector(
 		"PRAGMA SYNCHRONOUS = NORMAL;",
 		"PRAGMA FOREIGN_KEYS = true;",
 		"PRAGMA TEMP_STORE = MEMORY;",
-		"PRAGMA MMAP_SIZE = 536870912;", // 512MB
+		"PRAGMA MMAP_SIZE = 2147483648;", // 2GB
 	}
 
 	if readOnly {

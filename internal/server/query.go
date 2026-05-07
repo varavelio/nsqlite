@@ -13,6 +13,13 @@ import (
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
+func (s *Server) maxRequestSize() int64 {
+	if s.MaxRequestSizeMB <= 0 {
+		return 100 * 1024 * 1024 // 100MB default
+	}
+	return int64(s.MaxRequestSizeMB) * 1024 * 1024
+}
+
 // ResponseResult represents the structure of a query result.
 type ResponseResult struct {
 	// For all queries
@@ -64,6 +71,8 @@ func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
 			"Internal server error",
 		)
 	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, s.maxRequestSize())
 
 	queries, err := decodeQueries(r)
 	if err != nil {

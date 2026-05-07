@@ -13,14 +13,17 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	AuthToken     string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"           help:"Admin authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for full access."`
-	AuthTokenRW   string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"     help:"Read/write authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
-	AuthTokenRO   string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"     help:"Read-only authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read access only."`
-	DataDir       string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"               help:"Directory for NSQLite database files"                                                                                        default:"./data"`
-	ListenHost    string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"         help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
-	ListenPort    string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"         help:"Port for the server to listen on"                                                                                            default:"9876"`
-	TxIdleTimeout time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT" help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
-	MaxReadConns  int           `arg:"--max-read-conns,env:NSQLITE_MAX_READ_CONNS"   help:"Maximum number of read-only database connections"                                                                            default:"10"`
+	AuthToken        string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"                   help:"Admin authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for full access."`
+	AuthTokenRW      string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"             help:"Read/write authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
+	AuthTokenRO      string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"             help:"Read-only authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read access only."`
+	DataDir          string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"                       help:"Directory for NSQLite database files"                                                                                        default:"/data"`
+	ListenHost       string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"                 help:"Host for the server to listen on"                                                                                            default:"127.0.0.1"`
+	ListenPort       string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"                 help:"Port for the server to listen on"                                                                                            default:"9876"`
+	TxIdleTimeout    time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT"         help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
+	MaxReadConns     int           `arg:"--max-read-conns,env:NSQLITE_MAX_READ_CONNS"           help:"Maximum number of read-only database connections"                                                                            default:"10"`
+	CacheSizeKB      int           `arg:"--cache-size-kb,env:NSQLITE_CACHE_SIZE_KB"             help:"SQLite cache size in KB per connection (negative is converted internally, just specify the positive KB value)"               default:"20000"`
+	BusyTimeout      time.Duration `arg:"--busy-timeout,env:NSQLITE_BUSY_TIMEOUT"               help:"How long SQLite waits when the database is locked by another writer. Valid time units are ns, us (or µs), ms, s, m, h"       default:"5s"`
+	MaxRequestSizeMB int           `arg:"--max-request-size-mb,env:NSQLITE_MAX_REQUEST_SIZE_MB" help:"Maximum HTTP request body size in MB for the /query endpoint"                                                                default:"100"`
 }
 
 // Version returns the CLI version banner.
@@ -56,6 +59,15 @@ func (c Config) ToArgs() []string {
 	if c.MaxReadConns != 0 {
 		args = append(args, "--max-read-conns", fmt.Sprintf("%d", c.MaxReadConns))
 	}
+	if c.CacheSizeKB != 0 {
+		args = append(args, "--cache-size-kb", fmt.Sprintf("%d", c.CacheSizeKB))
+	}
+	if c.BusyTimeout != time.Duration(0) {
+		args = append(args, "--busy-timeout", c.BusyTimeout.String())
+	}
+	if c.MaxRequestSizeMB != 0 {
+		args = append(args, "--max-request-size-mb", fmt.Sprintf("%d", c.MaxRequestSizeMB))
+	}
 
 	return args
 }
@@ -87,6 +99,14 @@ func Parse(args []string) (Config, error) {
 	}
 
 	if err := validateTransactionTimeout(cfg.TxIdleTimeout); err != nil {
+		return Config{}, err
+	}
+
+	if err := validateBusyTimeout(cfg.BusyTimeout); err != nil {
+		return Config{}, err
+	}
+
+	if err := validateCacheSize(cfg.CacheSizeKB); err != nil {
 		return Config{}, err
 	}
 
@@ -128,6 +148,28 @@ func (c Config) ReadWriteAuthTokens() []string {
 // ReadOnlyAuthTokens returns the configured read-only authentication tokens.
 func (c Config) ReadOnlyAuthTokens() []string {
 	return splitAuthTokens(c.AuthTokenRO)
+}
+
+// validateBusyTimeout validates that the busy timeout is greater than zero.
+func validateBusyTimeout(timeout time.Duration) error {
+	if timeout <= 0 {
+		return fmt.Errorf(
+			"invalid busy timeout %s, must be greater than zero",
+			timeout.String(),
+		)
+	}
+	return nil
+}
+
+// validateCacheSize validates that the cache size is greater than zero.
+func validateCacheSize(size int) error {
+	if size <= 0 {
+		return fmt.Errorf(
+			"invalid cache size %d KB, must be greater than zero",
+			size,
+		)
+	}
+	return nil
 }
 
 // splitAuthTokens splits a token list on whitespace.

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/varavelio/nsqlite/internal/db"
@@ -32,6 +33,10 @@ type Config struct {
 	ListenHost string
 	// ListenPort is the port to listen on.
 	ListenPort string
+	// MaxRequestSizeMB is the maximum HTTP request body size in MB.
+	MaxRequestSizeMB int
+	// IdleTimeout is the maximum duration for an idle keep-alive connection.
+	IdleTimeout time.Duration
 }
 
 // Server is the server for NSQLite.
@@ -136,8 +141,9 @@ func (s *Server) Start() error {
 	addr := fmt.Sprintf("%s:%s", s.ListenHost, s.ListenPort)
 	localAddr := fmt.Sprintf("http://%s:%s", "localhost", s.ListenPort)
 	s.server = http.Server{
-		Addr:    addr,
-		Handler: mux,
+		Addr:        addr,
+		Handler:     mux,
+		IdleTimeout: s.IdleTimeout,
 	}
 
 	s.Logger.Info(context.Background(), "server started at "+localAddr,

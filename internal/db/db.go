@@ -41,6 +41,10 @@ type Config struct {
 	// MaxReadConns is the maximum number of read-only connections to the database.
 	// Default is 10, which is sufficient for most workloads.
 	MaxReadConns int
+	// CacheSizeKB is the SQLite cache size in KB per connection.
+	CacheSizeKB int
+	// BusyTimeout is how long SQLite waits when the database is locked.
+	BusyTimeout time.Duration
 }
 
 // DB represents the SQLite integration for NSQLite.
@@ -109,8 +113,8 @@ func NewDB(config Config) (*DB, error) {
 	}
 
 	databasePath := path.Join(config.DataDir, "database.sqlite")
-	readWriteConnector := newConnector(databasePath, false)
-	readOnlyConnector := newConnector(databasePath, true)
+	readWriteConnector := newConnector(databasePath, false, config.CacheSizeKB, config.BusyTimeout)
+	readOnlyConnector := newConnector(databasePath, true, config.CacheSizeKB, config.BusyTimeout)
 
 	readWritePool := sql.OpenDB(readWriteConnector)
 	if err := readWritePool.PingContext(context.Background()); err != nil {

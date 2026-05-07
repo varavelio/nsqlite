@@ -45,6 +45,9 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		"listenPort", conf.ListenPort,
 		"txIdleTimeout", conf.TxIdleTimeout.String(),
 		"maxReadConns", conf.MaxReadConns,
+		"cacheSizeKB", conf.CacheSizeKB,
+		"busyTimeout", conf.BusyTimeout.String(),
+		"maxRequestSizeMB", conf.MaxRequestSizeMB,
 	)
 
 	dbStats := stats.NewDBStats()
@@ -56,6 +59,8 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		DataDir:       conf.DataDir,
 		TxIdleTimeout: conf.TxIdleTimeout,
 		MaxReadConns:  conf.MaxReadConns,
+		CacheSizeKB:   conf.CacheSizeKB,
+		BusyTimeout:   conf.BusyTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("error starting database: %w", err)
@@ -75,6 +80,8 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		ReadOnlyAuthTokens:  conf.ReadOnlyAuthTokens(),
 		ListenHost:          conf.ListenHost,
 		ListenPort:          conf.ListenPort,
+		MaxRequestSizeMB:    conf.MaxRequestSizeMB,
+		IdleTimeout:         120 * time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)

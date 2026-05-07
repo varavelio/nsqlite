@@ -21,7 +21,7 @@ RUN apk add --quiet --no-cache ca-certificates curl tar && \
   curl -fsSLO "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/checksums.txt" && \
   grep " ${asset}$" checksums.txt | sha256sum -c - && \
   tar -xzf "${asset}" && \
-  install -m 0755 litestream /fetcher/litestream
+  chmod 0755 /fetcher/litestream
 
 # Build NSQLite with the repository Taskfile, which owns version metadata and flags.
 FROM golang:1.26-trixie AS builder

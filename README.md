@@ -14,9 +14,12 @@
   <a href="https://github.com/varavelio/nsqlite/releases/latest">
     <img src="https://img.shields.io/github/release/varavelio/nsqlite.svg" alt="Release Version"/>
   </a>
-  <!-- <a href="https://hub.docker.com/r/varavel/nsqlite">
-    <img alt="Docker Pulls" src="https://img.shields.io/docker/pulls/varavel/nsqlite"/>
-  </a> -->
+  <a href="https://hub.docker.com/r/varavel/nsqlite">
+    <img alt="Docker Hub Pulls" src="https://img.shields.io/docker/pulls/varavel/nsqlite?label=docker%20hub%20pulls"/>
+  </a>
+  <a href="https://github.com/orgs/varavelio/packages/container/package/nsqlite">
+    <img alt="GHCR Pulls" src="https://img.shields.io/badge/ghcr%20pulls-package%20stats-blue?logo=github"/>
+  </a>
   <a href="LICENSE">
     <img src="https://img.shields.io/github/license/varavelio/nsqlite.svg" alt="License"/>
   </a>
@@ -35,6 +38,11 @@
 
 `nsqlite` runs a SQLite-backed HTTP server and ships with a container image that can optionally wrap the process with `litestream` for continuous replication to any S3-compatible object store.
 
+Container images are published to both Docker Hub and GitHub Container Registry with matching tags:
+
+- Docker Hub: `varavel/nsqlite:<tag>`
+- GHCR: `ghcr.io/varavelio/nsqlite:<tag>`
+
 ## Quick Start
 
 Run NSQLite without Litestream:
@@ -42,6 +50,8 @@ Run NSQLite without Litestream:
 ```bash
 docker run --rm -p 9876:9876 -v ./data:/data varavel/nsqlite:latest
 ```
+
+You can also use the GHCR mirror by replacing the image with `ghcr.io/varavelio/nsqlite:latest`.
 
 Run NSQLite with Litestream and an S3-compatible replica:
 

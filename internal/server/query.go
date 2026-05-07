@@ -124,7 +124,12 @@ func (s *Server) executeRequestQuery(
 		return s.emptyQueryResult(ctx, query, startedAt), false
 	}
 
-	queryType, err := s.DB.ClassifyQuery(ctx, query.Query)
+	if err := s.DB.ValidateTxID(query.TxID); err != nil {
+		s.DBStats.IncErrors()
+		return s.executionErrorResult(ctx, query, startedAt, err), false
+	}
+
+	queryType, err := s.DB.ClassifyQuery(ctx, query.Query, query.TxID)
 	if err != nil {
 		return s.classificationErrorResult(ctx, query, startedAt, err), false
 	}

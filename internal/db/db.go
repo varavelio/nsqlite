@@ -196,6 +196,23 @@ func (db *DB) IsInitialized() bool {
 	return db.isInitialized
 }
 
+// ValidateTxID checks whether a request transaction ID matches the active transaction.
+func (db *DB) ValidateTxID(txID string) error {
+	if txID == "" {
+		return nil
+	}
+
+	currentTxID := db.txID.Load()
+	if currentTxID == "" {
+		return ErrTxNotFound
+	}
+	if txID != currentTxID {
+		return ErrTxNotMatch
+	}
+
+	return nil
+}
+
 // txIdleMonitor rolls back the current transaction if not used within the timeout.
 func (db *DB) txIdleMonitor(timeout time.Duration) {
 	defer db.closeWg.Done()
@@ -249,7 +266,7 @@ func (db *DB) Close() error {
 }
 
 // ClassifyQuery detects whether a query is a read, write, begin, commit, or rollback.
-func (db *DB) ClassifyQuery(ctx context.Context, query string) (QueryType, error) {
+func (db *DB) ClassifyQuery(ctx context.Context, query, txID string) (QueryType, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(query))
 
 	switch {
@@ -261,7 +278,7 @@ func (db *DB) ClassifyQuery(ctx context.Context, query string) (QueryType, error
 		return QueryTypeRollback, nil
 	}
 
-	conn, returnConn, err := db.getReadOnlyRawConn(ctx)
+	conn, returnConn, err := db.getClassificationRawConn(ctx, txID)
 	if err != nil {
 		return QueryTypeUnknown, fmt.Errorf("failed to get connection: %w", err)
 	}
@@ -277,6 +294,19 @@ func (db *DB) ClassifyQuery(ctx context.Context, query string) (QueryType, error
 		return QueryTypeRead, nil
 	}
 	return QueryTypeWrite, nil
+}
+
+func (db *DB) getClassificationRawConn(
+	ctx context.Context,
+	txID string,
+) (*sqlite.Conn, func() error, error) {
+	// Transaction-bound classification must use the read-write pool because the
+	// active transaction lives there and sees uncommitted schema changes. This
+	// relies on the write pool being constrained to one open connection.
+	if txID != "" {
+		return db.getReadWriteRawConn(ctx)
+	}
+	return db.getReadOnlyRawConn(ctx)
 }
 
 // Query executes an SQLite query.
@@ -295,14 +325,10 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return QueryResult{}, errors.New("query type is required")
 	}
 
+	if err := db.ValidateTxID(query.TxID); err != nil {
+		return QueryResult{}, err
+	}
 	if query.TxID != "" {
-		currentTxID := db.txID.Load()
-		if currentTxID == "" {
-			return QueryResult{}, ErrTxNotFound
-		}
-		if query.TxID != currentTxID {
-			return QueryResult{}, ErrTxNotMatch
-		}
 		db.txLastUsed.Store(time.Now())
 	}
 

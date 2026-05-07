@@ -128,6 +128,38 @@ func TestTransactionsAllowDependentDDLSchemaChangesBeforeCommit(t *testing.T) {
 	require.Equal(t, [][]any{{"child"}, {"parent"}}, schemaResult.Rows)
 }
 
+func TestTransactionsAllowCommentedDependentDDLBeforeCommit(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	beginResult := requireSuccessfulQueryResult(t, begin, "begin")
+	txID := beginResult.TxID
+	require.NotEmpty(t, txID)
+
+	parent := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE parent (id TEXT PRIMARY KEY);",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, parent, "write")
+
+	child := server.Query(t, "", harness.Query{
+		Query: "-- leading comment before transaction-bound DDL\nCREATE TABLE child (id TEXT PRIMARY KEY, parent_id TEXT NOT NULL, FOREIGN KEY (parent_id) REFERENCES parent(id));",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, child, "write")
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
+
+	schema := server.Query(t, "", harness.Query{
+		Query: "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('parent', 'child') ORDER BY name;",
+	})
+	schemaResult := requireSuccessfulQueryResult(t, schema, "read")
+	require.Equal(t, [][]any{{"child"}, {"parent"}}, schemaResult.Rows)
+}
+
 func TestTransactionsRollbackDependentDDLSchemaChangesAtomically(t *testing.T) {
 	t.Parallel()
 
@@ -291,6 +323,41 @@ func TestTransactionsRequireTheExactTransactionID(t *testing.T) {
 			}},
 		}, response)
 	})
+}
+
+func TestTransactionsValidateTransactionIDBeforeClassification(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := begin.Results[0].TxID
+	require.NotEmpty(t, txID)
+
+	wrongTxID := server.Query(t, "", harness.Query{
+		Query: "SELECT * FROM;",
+		TxID:  "wrong-tx-id",
+	})
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type:  "error",
+			Error: "transaction ID does not match the currently active transaction",
+		}},
+	}, wrongTxID)
+
+	rollback := server.Query(t, "", harness.Query{Query: "ROLLBACK;", TxID: txID})
+	require.Equal(t, "rollback", rollback.Results[0].Type)
+
+	closedTxID := server.Query(t, "", harness.Query{
+		Query: "SELECT * FROM;",
+		TxID:  txID,
+	})
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type:  "error",
+			Error: "transaction not found or timed out, check your settings",
+		}},
+	}, closedTxID)
 }
 
 func TestTransactionsAcceptEndTransactionAsARollbackAlias(t *testing.T) {

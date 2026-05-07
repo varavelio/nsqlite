@@ -65,7 +65,7 @@ ARG DATE=1970-01-01T00:00:00Z
 
 LABEL org.opencontainers.image.title="NSQLite" \
   org.opencontainers.image.authors="Varavel" \
-  org.opencontainers.image.description="SQLite over the network with optional Litestream replication" \
+  org.opencontainers.image.description="SQLite over the network with optional Litestream integration" \
   org.opencontainers.image.url="https://github.com/varavelio/nsqlite" \
   org.opencontainers.image.documentation="https://github.com/varavelio/nsqlite" \
   org.opencontainers.image.source="https://github.com/varavelio/nsqlite" \

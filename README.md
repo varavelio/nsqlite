@@ -45,28 +45,44 @@ Container images are published to both Docker Hub and GitHub Container Registry 
 
 ## Quick Start
 
-Run NSQLite without Litestream:
+Run NSQLite without Litestream using Docker Compose:
 
-```bash
-docker run --rm -p 9876:9876 -v ./data:/data varavel/nsqlite:latest
+```yaml
+services:
+  nsqlite:
+    image: varavel/nsqlite:latest
+    ports:
+      - "9876:9876"
+    volumes:
+      - ./data:/data
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 ```
 
-You can also use the GHCR mirror by replacing the image with `ghcr.io/varavelio/nsqlite:latest`.
+Run NSQLite with Litestream and an S3-compatible replica using Docker Compose:
 
-Run NSQLite with Litestream and an S3-compatible replica:
-
-```bash
-docker run --rm \
-  -p 9876:9876 \
-  -v ./data:/data \
-  -e NSQLITE_LITESTREAM_ENABLED=true \
-  -e NSQLITE_LITESTREAM_S3_BUCKET="my-backups" \
-  -e NSQLITE_LITESTREAM_S3_PATH="db-backup/database.sqlite" \
-  -e NSQLITE_LITESTREAM_S3_ENDPOINT="https://minio.example.com:9000" \
-  -e NSQLITE_LITESTREAM_S3_REGION="us-east-1" \
-  -e NSQLITE_LITESTREAM_S3_ACCESS_KEY_ID="your-access-key" \
-  -e NSQLITE_LITESTREAM_S3_SECRET_ACCESS_KEY="your-secret-key" \
-  varavel/nsqlite:latest
+```yaml
+services:
+  nsqlite:
+    image: varavel/nsqlite:latest
+    ports:
+      - "9876:9876"
+    volumes:
+      - ./data:/data
+    environment:
+      NSQLITE_LITESTREAM_ENABLED: "true"
+      NSQLITE_LITESTREAM_S3_BUCKET: my-backups
+      NSQLITE_LITESTREAM_S3_PATH: db-backup/database.sqlite
+      NSQLITE_LITESTREAM_S3_ENDPOINT: https://minio.example.com:9000
+      NSQLITE_LITESTREAM_S3_REGION: us-east-1
+      NSQLITE_LITESTREAM_S3_ACCESS_KEY_ID: your-access-key
+      NSQLITE_LITESTREAM_S3_SECRET_ACCESS_KEY: your-secret-key
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
 ```
 
 ## NSQLite Configuration

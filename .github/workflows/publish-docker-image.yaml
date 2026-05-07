@@ -1,5 +1,9 @@
 name: Build & Publish Docker Image
 
+env:
+  DOCKERHUB_IMAGE: varavel/nsqlite
+  GHCR_IMAGE: ghcr.io/varavelio/nsqlite
+
 on:
   workflow_dispatch:
     inputs:
@@ -8,10 +12,10 @@ on:
         required: true
         default: main
       tag:
-        description: The version tag for the Docker image (e.g., 1.0.0) ⚠️ Without v prefix ⚠️
+        description: The version tag for the Docker image (e.g., 1.0.0). The "v" prefix is automatically stripped
         required: true
       latest:
-        description: Choose "yes" to also tag the image as "latest" in Docker Hub
+        description: Choose "yes" to also tag the image as "latest" in Docker Hub and GHCR
         required: true
         type: choice
         options:
@@ -20,6 +24,10 @@ on:
 
 jobs:
   build-and-push-images:
+    permissions:
+      contents: read
+      packages: write
+
     strategy:
       matrix:
         vars:
@@ -38,8 +46,11 @@ jobs:
         with:
           ref: ${{ github.event.inputs.commit }}
 
-      - name: Set tag version
-        run: chmod +x ./scripts/set-version.sh && ./scripts/set-version.sh v${{ github.event.inputs.tag }}
+      - name: Strip "v" prefix from tag
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          TAG="${TAG#v}"
+          echo "CLEAN_TAG=${TAG}" >> "$GITHUB_ENV"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -47,26 +58,40 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Build the Docker image
         run: >
           docker build
-          --tag varavel/nsqlite:${{ github.event.inputs.tag }}-${{ matrix.vars.platform }}
+          --tag ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-${{ matrix.vars.platform }}
+          --tag ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-${{ matrix.vars.platform }}
           --build-arg TARGETPLATFORM=linux/${{ matrix.vars.platform }}
           --file Dockerfile .
 
-      - name: Push the Docker image
-        run: docker push varavel/nsqlite:${{ github.event.inputs.tag }}-${{ matrix.vars.platform }}
+      - name: Push the Docker images
+        run: |
+          docker push ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-${{ matrix.vars.platform }}
+          docker push ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-${{ matrix.vars.platform }}
 
   merge-and-push-manifest:
     name: Merge manifest
     needs: build-and-push-images
     runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.commit }}
+      - name: Strip "v" prefix from tag
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          TAG="${TAG#v}"
+          echo "CLEAN_TAG=${TAG}" >> "$GITHUB_ENV"
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -74,18 +99,37 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USER }}
           password: ${{ secrets.DOCKERHUB_ACCESS_TOKEN }}
 
-      - name: Merge and push manifest
-        run: |
-          docker manifest create varavel/nsqlite:${{ github.event.inputs.tag }} \
-          varavel/nsqlite:${{ github.event.inputs.tag }}-amd64 \
-          varavel/nsqlite:${{ github.event.inputs.tag }}-arm64
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-          docker manifest push varavel/nsqlite:${{ github.event.inputs.tag }}
+      - name: Merge and push manifests
+        run: |
+          docker manifest create ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }} \
+          --amend ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-amd64 \
+          --amend ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-arm64
+
+          docker manifest push ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}
+
+          docker manifest create ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }} \
+          --amend ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-amd64 \
+          --amend ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-arm64
+
+          docker manifest push ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}
 
           if [ "${{ github.event.inputs.latest }}" == "yes" ]; then
-            docker manifest create varavel/nsqlite:latest \
-            varavel/nsqlite:${{ github.event.inputs.tag }}-amd64 \
-            varavel/nsqlite:${{ github.event.inputs.tag }}-arm64
+            docker manifest create ${{ env.DOCKERHUB_IMAGE }}:latest \
+            --amend ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-amd64 \
+            --amend ${{ env.DOCKERHUB_IMAGE }}:${{ env.CLEAN_TAG }}-arm64
 
-            docker manifest push varavel/nsqlite:latest
+            docker manifest push ${{ env.DOCKERHUB_IMAGE }}:latest
+
+            docker manifest create ${{ env.GHCR_IMAGE }}:latest \
+            --amend ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-amd64 \
+            --amend ${{ env.GHCR_IMAGE }}:${{ env.CLEAN_TAG }}-arm64
+
+            docker manifest push ${{ env.GHCR_IMAGE }}:latest
           fi

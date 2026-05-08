@@ -98,7 +98,7 @@ jsonpath "$.results[1].rows[0][0]" == 50
 
 # Batch with failing CREATE TABLE followed by successful SELECT on existing table
 POST {{host}}/query
-Authorization: Bearer {{rw_token}}
+Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 [
   {

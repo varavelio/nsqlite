@@ -1,10 +1,20 @@
 POST {{host}}/query
-Authorization: Bearer {{rw_token}}
+Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 [
   {
     "query": "CREATE TABLE accounts (id INTEGER PRIMARY KEY, balance INTEGER NOT NULL, note TEXT NOT NULL);"
-  },
+  }
+]
+
+HTTP 200
+[Asserts]
+jsonpath "$.results[0].type" == "write"
+
+POST {{host}}/query
+Authorization: Bearer {{rw_token}}
+Content-Type: application/json
+[
   {
     "query": "INSERT INTO accounts (id, balance, note) VALUES (1, 10, 'seed');"
   }
@@ -13,7 +23,6 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 jsonpath "$.results[0].type" == "write"
-jsonpath "$.results[1].type" == "write"
 
 POST {{host}}/query
 Authorization: Bearer {{rw_token}}

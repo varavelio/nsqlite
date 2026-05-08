@@ -1,11 +1,21 @@
 # Test INSERT ... RETURNING
 POST {{host}}/query
-Authorization: Bearer {{rw_token}}
+Authorization: Bearer {{admin_token}}
 Content-Type: application/json
 [
   {
     "query": "CREATE TABLE test_returning (id INTEGER PRIMARY KEY, name TEXT);"
-  },
+  }
+]
+
+HTTP 200
+[Asserts]
+jsonpath "$.results[0].type" == "write"
+
+POST {{host}}/query
+Authorization: Bearer {{rw_token}}
+Content-Type: application/json
+[
   {
     "query": "INSERT INTO test_returning (name) VALUES ('Jane') RETURNING *;"
   }
@@ -13,11 +23,11 @@ Content-Type: application/json
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[1].type" == "write"
-jsonpath "$.results[1].columns[0]" == "id"
-jsonpath "$.results[1].columns[1]" == "name"
-jsonpath "$.results[1].rows[0][0]" == 1
-jsonpath "$.results[1].rows[0][1]" == "Jane"
+jsonpath "$.results[0].type" == "write"
+jsonpath "$.results[0].columns[0]" == "id"
+jsonpath "$.results[0].columns[1]" == "name"
+jsonpath "$.results[0].rows[0][0]" == 1
+jsonpath "$.results[0].rows[0][1]" == "Jane"
 
 # Test queries with and without semicolons
 POST {{host}}/query

@@ -12,6 +12,26 @@ const config = {
 
   plugins [
     {
+      src "varavelio/vdl-plugin-explorer@v0.1.1"
+      schema "./index.vdl"
+      outDir "../docs/schema"
+      options {
+        outFile "explorer.html"
+        rpcBaseUrl "https://<baseURL>:9876/rpc"
+      }
+    }
+    {
+      src "varavelio/vdl-plugin-rpc-openapi@v0.1.3"
+      schema "./index.vdl"
+      outDir "../docs/schema"
+      options {
+        title "NSQLite API"
+        baseUrl "https://<baseURL>:9876/rpc"
+        playgroundFile "swagger.html"
+        playgroundUi "swagger-ui"
+      }
+    }
+    {
       src "varavelio/vdl-plugin-go@v0.1.3"
       schema "./index.vdl"
       outDir "../internal/vdl"

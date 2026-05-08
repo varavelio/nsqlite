@@ -38,43 +38,100 @@ static int cust_authorizer_is_internal_table(const char *name) {
 // perspective.  The only notable omission is load_extension(), which can load
 // arbitrary shared libraries.
 static const char *allowed_function_names[] = {
-    "abs",                       "avg",
-    "coalesce",                  "concat",
-    "date",                      "datetime",
-    "group_concat",              "hex",
-    "instr",                     "json",
-    "json_each",                 "json_extract",
-    "json_insert",               "json_object",
-    "json_remove",               "json_replace",
-    "json_valid",                "julianday",
-    "like",                      "likelihood",
-    "ltrim",                     "max",
-    "octet_length",              "printf",
-    "randomblob",                "replace",
-    "changes",                   "char",
-    "concat_ws",                 "count",
-    "format",                    "glob",
-    "ifnull",                    "iif",
-    "json_array",                "json_array_length",
-    "json_group_array",          "json_group_object",
-    "json_patch",                "json_quote",
-    "json_set",                  "json_type",
-    "last_insert_rowid",         "length",
-    "likely",                    "lower",
-    "min",                       "nullif",
-    "quote",                     "random",
-    "round",                     "rtrim",
-    "sign",                      "sqlite_compileoption_get",
-    "sqlite_compileoption_used", "sqlite_offset",
-    "sqlite_version",            "strftime",
-    "sum",                       "time",
-    "total_changes",             "trim",
-    "unicode",                   "unlikely",
-    "substr",                    "substring",
-    "timediff",                  "total",
-    "typeof",                    "unhex",
-    "upper",                     "zeroblob",
+    "abs",
+    "avg",
+    "changes",
+    "char",
+    "coalesce",
+    "concat",
+    "concat_ws",
+    "count",
+    "date",
+    "datetime",
+    "format",
+    "glob",
+    "group_concat",
+    "hex",
+    "if",
+    "ifnull",
+    "iif",
+    "instr",
+    "json",
+    "json_array",
+    "json_array_insert",
+    "json_array_length",
+    "json_each",
+    "json_error_position",
+    "json_extract",
+    "json_group_array",
+    "json_group_object",
+    "json_insert",
+    "json_object",
+    "json_patch",
+    "json_pretty",
+    "json_quote",
+    "json_remove",
+    "json_replace",
+    "json_set",
+    "json_tree",
+    "json_type",
+    "json_valid",
+    "jsonb",
+    "jsonb_array",
+    "jsonb_array_insert",
+    "jsonb_each",
+    "jsonb_extract",
+    "jsonb_group_array",
+    "jsonb_group_object",
+    "jsonb_insert",
+    "jsonb_object",
+    "jsonb_patch",
+    "jsonb_remove",
+    "jsonb_replace",
+    "jsonb_set",
+    "jsonb_tree",
+    "julianday",
+    "last_insert_rowid",
+    "length",
+    "like",
+    "likelihood",
+    "likely",
+    "lower",
+    "ltrim",
+    "max",
+    "min",
+    "nullif",
+    "octet_length",
+    "printf",
+    "quote",
+    "random",
+    "randomblob",
+    "replace",
+    "round",
+    "rtrim",
+    "sign",
+    "sqlite_compileoption_get",
+    "sqlite_compileoption_used",
     "sqlite_source_id",
+    "sqlite_version",
+    "strftime",
+    "substr",
+    "substring",
+    "sum",
+    "time",
+    "timediff",
+    "total",
+    "total_changes",
+    "trim",
+    "typeof",
+    "unhex",
+    "unicode",
+    "unistr",
+    "unistr_quote",
+    "unixepoch",
+    "unlikely",
+    "upper",
+    "zeroblob",
     NULL
 };
 
@@ -90,30 +147,55 @@ static int cust_authorizer_is_allowed_function(const char *name) {
   return 0;
 }
 
-// Read-only PRAGMAs that are safe for READ_WRITE and READ_ONLY roles. PRAGMAs
-// that change database state (journal_mode, synchronous, foreign_keys, …) are
-// intentionally excluded.
-static const char *readonly_pragma_names[] = {
-    "collation_list",   "compile_options",    "data_version",
-    "database_list",    "defer_foreign_keys", "foreign_key_check",
-    "foreign_key_list", "freelist_count",     "function_list",
-    "index_info",       "index_list",         "index_xinfo",
-    "integrity_check",  "module_list",        "page_count",
-    "page_size",        "pragma_list",        "quick_check",
-    "schema_version",   "table_info",         "table_xinfo",
-    "user_version",
-    NULL
-};
-
-static int cust_authorizer_is_readonly_pragma(const char *name) {
+// Read-only PRAGMAs that are safe for READ_WRITE and READ_ONLY roles,
+// categorised by whether they accept a first argument (arg4).
+//
+// Introspection pragmas always need a table name argument (e.g.
+//   PRAGMA table_info(users)
+// returns 1 unconditionally.
+//
+// Stateless pragmas are genuinely read-only only when called without an
+// assignment argument (arg4 == NULL).  Passing arg4 turns them into writes
+// (e.g. PRAGMA user_version = 123).
+//
+// Expensive pragmas (integrity_check, quick_check, foreign_key_check) and
+// state-changing pragmas are intentionally excluded — admin-only.
+static int cust_authorizer_is_readonly_pragma(const char *name, const char *arg) {
   if (name == NULL) {
     return 0;
   }
-  for (int i = 0; readonly_pragma_names[i] != NULL; i++) {
-    if (strcmp(name, readonly_pragma_names[i]) == 0) {
-      return 1;
-    }
+
+  // Introspection pragmas. They are read-only even when they take a table/index argument.
+  if (
+      strcmp(name, "table_info") == 0 ||
+      strcmp(name, "table_xinfo") == 0 ||
+      strcmp(name, "index_info") == 0 ||
+      strcmp(name, "index_xinfo") == 0 ||
+      strcmp(name, "index_list") == 0 ||
+      strcmp(name, "foreign_key_list") == 0
+  ) {
+    return 1;
   }
+
+  // Stateless read-only pragmas — safe only when called without an argument.
+  if (
+      strcmp(name, "collation_list") == 0 ||
+      strcmp(name, "compile_options") == 0 ||
+      strcmp(name, "data_version") == 0 ||
+      strcmp(name, "database_list") == 0 ||
+      strcmp(name, "defer_foreign_keys") == 0 ||
+      strcmp(name, "freelist_count") == 0 ||
+      strcmp(name, "function_list") == 0 ||
+      strcmp(name, "module_list") == 0 ||
+      strcmp(name, "page_count") == 0 ||
+      strcmp(name, "page_size") == 0 ||
+      strcmp(name, "pragma_list") == 0 ||
+      strcmp(name, "schema_version") == 0 ||
+      strcmp(name, "user_version") == 0
+  ) {
+    return arg == NULL;
+  }
+
   return 0;
 }
 
@@ -142,7 +224,7 @@ static int cust_sqlite3_authorizer(void *pUserData, int action, const char *arg3
       return cust_authorizer_is_allowed_function(arg4) ? SQLITE_OK : SQLITE_DENY;
 
     case SQLITE_PRAGMA:
-      return cust_authorizer_is_readonly_pragma(arg3) ? SQLITE_OK : SQLITE_DENY;
+      return cust_authorizer_is_readonly_pragma(arg3, arg4) ? SQLITE_OK : SQLITE_DENY;
 
     case SQLITE_TRANSACTION:
     case SQLITE_SAVEPOINT:
@@ -169,7 +251,7 @@ static int cust_sqlite3_authorizer(void *pUserData, int action, const char *arg3
       return cust_authorizer_is_allowed_function(arg4) ? SQLITE_OK : SQLITE_DENY;
 
     case SQLITE_PRAGMA:
-      return cust_authorizer_is_readonly_pragma(arg3) ? SQLITE_OK : SQLITE_DENY;
+      return cust_authorizer_is_readonly_pragma(arg3, arg4) ? SQLITE_OK : SQLITE_DENY;
     }
     return SQLITE_DENY;
   }

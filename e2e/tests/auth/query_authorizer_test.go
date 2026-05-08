@@ -266,16 +266,16 @@ func TestAuthorizerPRAGMAWhitelistViaHTTP(t *testing.T) {
 		"PRAGMA table_xinfo(sqlite_master)",
 		"PRAGMA database_list",
 		"PRAGMA compile_options",
-		"PRAGMA schema_version",
-		"PRAGMA user_version",
 		"PRAGMA collation_list",
 		"PRAGMA function_list",
 		"PRAGMA pragma_list",
 		"PRAGMA page_count",
-		"PRAGMA page_size",
 		"PRAGMA data_version",
+		"PRAGMA freelist_count",
+		"PRAGMA user_version",
+		"PRAGMA schema_version",
+		"PRAGMA page_size",
 		"PRAGMA defer_foreign_keys",
-		"PRAGMA foreign_key_check(sqlite_master)",
 	}
 
 	for _, pragma := range allowedPragmas {
@@ -300,6 +300,13 @@ func TestAuthorizerPRAGMAWhitelistViaHTTP(t *testing.T) {
 		"PRAGMA busy_timeout = 5000",
 		"PRAGMA writable_schema = ON",
 		"PRAGMA wal_checkpoint",
+		"PRAGMA user_version = 123",
+		"PRAGMA schema_version = 999",
+		"PRAGMA page_size = 8192",
+		"PRAGMA defer_foreign_keys = ON",
+		"PRAGMA integrity_check",
+		"PRAGMA quick_check",
+		"PRAGMA foreign_key_check",
 	}
 
 	for _, pragma := range blockedPragmas {
@@ -462,14 +469,6 @@ func TestAuthorizerReadOnlyAllowableOperations(t *testing.T) {
 			Query: "SELECT JSON_EXTRACT(data, '$.age') AS age FROM ro_allowable",
 		})
 		require.Equal(t, "read", resp.Results[0].Type)
-	})
-
-	t.Run("select with pragma", func(t *testing.T) {
-		resp := server.Query(t, "read-only-token", harness.Query{
-			Query: "PRAGMA table_info(ro_allowable)",
-		})
-		require.Equal(t, "read", resp.Results[0].Type)
-		require.Greater(t, len(resp.Results[0].Rows), 0)
 	})
 
 	t.Run("cannot insert even with allowed functions mixed in", func(t *testing.T) {

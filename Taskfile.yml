@@ -37,6 +37,8 @@ tasks:
     cmds:
       - go mod download
       - go run ./scripts/fetch-sqlite/main.go
+      - npm install
+      - cd ./ui && npm install
 
   devui:
     desc: Start the development server for the UI

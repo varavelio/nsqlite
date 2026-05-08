@@ -37,8 +37,8 @@ func (e AuthRole) String() string {
 // IsValid reports whether the value belongs to AuthRole.
 func (e AuthRole) IsValid() bool {
 	switch e {
-		case AuthRoleAdmin, AuthRoleReadWrite, AuthRoleReadOnly:
-			return true
+	case AuthRoleAdmin, AuthRoleReadWrite, AuthRoleReadOnly:
+		return true
 	}
 	return false
 }
@@ -102,8 +102,8 @@ func (e QueryResultType) String() string {
 // IsValid reports whether the value belongs to QueryResultType.
 func (e QueryResultType) IsValid() bool {
 	switch e {
-		case QueryResultTypeRead, QueryResultTypeWrite, QueryResultTypeBegin, QueryResultTypeCommit, QueryResultTypeRollback, QueryResultTypeError:
-			return true
+	case QueryResultTypeRead, QueryResultTypeWrite, QueryResultTypeBegin, QueryResultTypeCommit, QueryResultTypeRollback, QueryResultTypeError:
+		return true
 	}
 	return false
 }
@@ -164,8 +164,8 @@ func (e SqliteStorageClass) String() string {
 // IsValid reports whether the value belongs to SqliteStorageClass.
 func (e SqliteStorageClass) IsValid() bool {
 	switch e {
-		case SqliteStorageClassNull, SqliteStorageClassInteger, SqliteStorageClassReal, SqliteStorageClassText, SqliteStorageClassBlob:
-			return true
+	case SqliteStorageClassNull, SqliteStorageClassInteger, SqliteStorageClassReal, SqliteStorageClassText, SqliteStorageClassBlob:
+		return true
 	}
 	return false
 }

@@ -83,13 +83,13 @@ func (x *Database) GetQueryOr(defaultValue DatabaseQuery) DatabaseQuery {
 
 // DatabaseQuery represents the inline object declared at Database.query.
 type DatabaseQuery struct {
-	Input DatabaseQueryInput `json:"input"`
+	Input  DatabaseQueryInput  `json:"input"`
 	Output DatabaseQueryOutput `json:"output"`
 }
 
 // preDatabaseQuery mirrors DatabaseQuery during strict JSON decoding.
 type preDatabaseQuery struct {
-	Input *preDatabaseQueryInput `json:"input"`
+	Input  *preDatabaseQueryInput  `json:"input"`
 	Output *preDatabaseQueryOutput `json:"output"`
 }
 
@@ -132,7 +132,7 @@ func (p *preDatabaseQuery) transform() DatabaseQuery {
 	transOutput = DatabaseQueryOutput(p.Output.transform())
 
 	return DatabaseQuery{
-		Input: transInput,
+		Input:  transInput,
 		Output: transOutput,
 	}
 }
@@ -270,7 +270,7 @@ type DatabaseQueryOutput struct {
 
 // preDatabaseQueryOutput mirrors DatabaseQueryOutput during strict JSON decoding.
 type preDatabaseQueryOutput struct {
-	Time *float64 `json:"time"`
+	Time    *float64          `json:"time"`
 	Results *[]preQueryResult `json:"results"`
 }
 
@@ -316,7 +316,7 @@ func (p *preDatabaseQueryOutput) transform() DatabaseQueryOutput {
 	}
 
 	return DatabaseQueryOutput{
-		Time: transTime,
+		Time:    transTime,
 		Results: transResults,
 	}
 }
@@ -382,8 +382,8 @@ type Query struct {
 
 // preQuery mirrors Query during strict JSON decoding.
 type preQuery struct {
-	TxId *string `json:"txId,omitempty"`
-	Query *string `json:"query"`
+	TxId   *string          `json:"txId,omitempty"`
+	Query  *string          `json:"query"`
 	Params *[]preQueryParam `json:"params,omitempty"`
 }
 
@@ -433,8 +433,8 @@ func (p *preQuery) transform() Query {
 	}
 
 	return Query{
-		TxId: transTxId,
-		Query: transQuery,
+		TxId:   transTxId,
+		Query:  transQuery,
 		Params: transParams,
 	}
 }
@@ -516,7 +516,7 @@ type QueryParam struct {
 
 // preQueryParam mirrors QueryParam during strict JSON decoding.
 type preQueryParam struct {
-	Name *string `json:"name,omitempty"`
+	Name  *string      `json:"name,omitempty"`
 	Value *SqliteValue `json:"value"`
 }
 
@@ -541,7 +541,7 @@ func (p *preQueryParam) transform() QueryParam {
 	transValue = *p.Value
 
 	return QueryParam{
-		Name: transName,
+		Name:  transName,
 		Value: transValue,
 	}
 }
@@ -622,15 +622,15 @@ type QueryResult struct {
 
 // preQueryResult mirrors QueryResult during strict JSON decoding.
 type preQueryResult struct {
-	Type *QueryResultType `json:"type"`
-	Time *float64 `json:"time"`
-	Error *string `json:"error,omitempty"`
-	TxId *string `json:"txId,omitempty"`
-	LastInsertId *int64 `json:"lastInsertId,omitempty"`
-	RowsAffected *int64 `json:"rowsAffected,omitempty"`
-	Columns *[]string `json:"columns,omitempty"`
-	Types *[]SqliteStorageClass `json:"types,omitempty"`
-	Rows *[][]SqliteValue `json:"rows,omitempty"`
+	Type         *QueryResultType      `json:"type"`
+	Time         *float64              `json:"time"`
+	Error        *string               `json:"error,omitempty"`
+	TxId         *string               `json:"txId,omitempty"`
+	LastInsertId *int64                `json:"lastInsertId,omitempty"`
+	RowsAffected *int64                `json:"rowsAffected,omitempty"`
+	Columns      *[]string             `json:"columns,omitempty"`
+	Types        *[]SqliteStorageClass `json:"types,omitempty"`
+	Rows         *[][]SqliteValue      `json:"rows,omitempty"`
 }
 
 // validate reports whether preQueryResult satisfies strict JSON requirements.
@@ -684,15 +684,15 @@ func (p *preQueryResult) transform() QueryResult {
 	transRows = p.Rows
 
 	return QueryResult{
-		Type: transType,
-		Time: transTime,
-		Error: transError,
-		TxId: transTxId,
+		Type:         transType,
+		Time:         transTime,
+		Error:        transError,
+		TxId:         transTxId,
 		LastInsertId: transLastInsertId,
 		RowsAffected: transRowsAffected,
-		Columns: transColumns,
-		Types: transTypes,
-		Rows: transRows,
+		Columns:      transColumns,
+		Types:        transTypes,
+		Rows:         transRows,
 	}
 }
 
@@ -986,11 +986,11 @@ type Stats struct {
 
 // preStats mirrors Stats during strict JSON decoding.
 type preStats struct {
-	StartedAt *time.Time `json:"startedAt"`
-	UptimeSeconds *float64 `json:"uptimeSeconds"`
-	Totals *preStatsTotalsCounters `json:"totals"`
-	Queued *preStatsQueuedCounters `json:"queued"`
-	Minutes *map[string]preStatsTotalsCounters `json:"minutes"`
+	StartedAt     *time.Time                         `json:"startedAt"`
+	UptimeSeconds *float64                           `json:"uptimeSeconds"`
+	Totals        *preStatsTotalsCounters            `json:"totals"`
+	Queued        *preStatsQueuedCounters            `json:"queued"`
+	Minutes       *map[string]preStatsTotalsCounters `json:"minutes"`
 }
 
 // validate reports whether preStats satisfies strict JSON requirements.
@@ -1078,11 +1078,11 @@ func (p *preStats) transform() Stats {
 	}
 
 	return Stats{
-		StartedAt: transStartedAt,
+		StartedAt:     transStartedAt,
 		UptimeSeconds: transUptimeSeconds,
-		Totals: transTotals,
-		Queued: transQueued,
-		Minutes: transMinutes,
+		Totals:        transTotals,
+		Queued:        transQueued,
+		Minutes:       transMinutes,
 	}
 }
 
@@ -1196,8 +1196,8 @@ type StatsQueuedCounters struct {
 
 // preStatsQueuedCounters mirrors StatsQueuedCounters during strict JSON decoding.
 type preStatsQueuedCounters struct {
-	Begins *int64 `json:"begins"`
-	Writes *int64 `json:"writes"`
+	Begins       *int64 `json:"begins"`
+	Writes       *int64 `json:"writes"`
 	HttpRequests *int64 `json:"httpRequests"`
 }
 
@@ -1241,8 +1241,8 @@ func (p *preStatsQueuedCounters) transform() StatsQueuedCounters {
 	transHttpRequests = *p.HttpRequests
 
 	return StatsQueuedCounters{
-		Begins: transBegins,
-		Writes: transWrites,
+		Begins:       transBegins,
+		Writes:       transWrites,
 		HttpRequests: transHttpRequests,
 	}
 }
@@ -1331,12 +1331,12 @@ type StatsTotalsCounters struct {
 
 // preStatsTotalsCounters mirrors StatsTotalsCounters during strict JSON decoding.
 type preStatsTotalsCounters struct {
-	Reads *int64 `json:"reads"`
-	Writes *int64 `json:"writes"`
-	Begins *int64 `json:"begins"`
-	Commits *int64 `json:"commits"`
-	Rollbacks *int64 `json:"rollbacks"`
-	Errors *int64 `json:"errors"`
+	Reads        *int64 `json:"reads"`
+	Writes       *int64 `json:"writes"`
+	Begins       *int64 `json:"begins"`
+	Commits      *int64 `json:"commits"`
+	Rollbacks    *int64 `json:"rollbacks"`
+	Errors       *int64 `json:"errors"`
 	HttpRequests *int64 `json:"httpRequests"`
 }
 
@@ -1424,12 +1424,12 @@ func (p *preStatsTotalsCounters) transform() StatsTotalsCounters {
 	transHttpRequests = *p.HttpRequests
 
 	return StatsTotalsCounters{
-		Reads: transReads,
-		Writes: transWrites,
-		Begins: transBegins,
-		Commits: transCommits,
-		Rollbacks: transRollbacks,
-		Errors: transErrors,
+		Reads:        transReads,
+		Writes:       transWrites,
+		Begins:       transBegins,
+		Commits:      transCommits,
+		Rollbacks:    transRollbacks,
+		Errors:       transErrors,
 		HttpRequests: transHttpRequests,
 	}
 }
@@ -1578,9 +1578,9 @@ type System struct {
 
 // preSystem mirrors System during strict JSON decoding.
 type preSystem struct {
-	Health *preSystemHealth `json:"health"`
+	Health  *preSystemHealth  `json:"health"`
 	Session *preSystemSession `json:"session"`
-	Status *preSystemStatus `json:"status"`
+	Status  *preSystemStatus  `json:"status"`
 }
 
 // validate reports whether preSystem satisfies strict JSON requirements.
@@ -1638,9 +1638,9 @@ func (p *preSystem) transform() System {
 	transStatus = SystemStatus(p.Status.transform())
 
 	return System{
-		Health: transHealth,
+		Health:  transHealth,
 		Session: transSession,
-		Status: transStatus,
+		Status:  transStatus,
 	}
 }
 
@@ -1787,9 +1787,9 @@ type SystemHealthOutput struct {
 
 // preSystemHealthOutput mirrors SystemHealthOutput during strict JSON decoding.
 type preSystemHealthOutput struct {
-	Healthy *bool `json:"healthy"`
-	Database *bool `json:"database"`
-	Message *string `json:"message"`
+	Healthy  *bool   `json:"healthy"`
+	Database *bool   `json:"database"`
+	Message  *string `json:"message"`
 }
 
 // validate reports whether preSystemHealthOutput satisfies strict JSON requirements.
@@ -1832,9 +1832,9 @@ func (p *preSystemHealthOutput) transform() SystemHealthOutput {
 	transMessage = *p.Message
 
 	return SystemHealthOutput{
-		Healthy: transHealthy,
+		Healthy:  transHealthy,
 		Database: transDatabase,
-		Message: transMessage,
+		Message:  transMessage,
 	}
 }
 
@@ -2111,9 +2111,9 @@ type SystemStatusOutput struct {
 
 // preSystemStatusOutput mirrors SystemStatusOutput during strict JSON decoding.
 type preSystemStatusOutput struct {
-	Name *string `json:"name"`
-	Version *string `json:"version"`
-	Stats *preStats `json:"stats"`
+	Name    *string   `json:"name"`
+	Version *string   `json:"version"`
+	Stats   *preStats `json:"stats"`
 }
 
 // validate reports whether preSystemStatusOutput satisfies strict JSON requirements.
@@ -2161,9 +2161,9 @@ func (p *preSystemStatusOutput) transform() SystemStatusOutput {
 	transStats = Stats(p.Stats.transform())
 
 	return SystemStatusOutput{
-		Name: transName,
+		Name:    transName,
 		Version: transVersion,
-		Stats: transStats,
+		Stats:   transStats,
 	}
 }
 

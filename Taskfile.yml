@@ -46,6 +46,8 @@ tasks:
 
   build:
     desc: Build the binary for the current platform
+    deps:
+      - codegen
     cmds:
       - cd ./ui && npx --no svelte-kit sync && npx --no vite build
       - mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
@@ -57,6 +59,10 @@ tasks:
   run:
     desc: Run the project (blocking)
     cmd: ./dist/nsqlite
+
+  codegen:
+    desc: Run code generators
+    cmd: vdl generate ./schema/vdl.config.vdl
 
   format:
     desc: Format all code

@@ -34,6 +34,10 @@ type Config struct {
 	ListenHost string
 	// ListenPort is the port to listen on.
 	ListenPort string
+	// DisableCORS disables CORS response headers and preflight handling.
+	DisableCORS bool
+	// CORS controls cross-origin request behavior.
+	CORS CORSConfig
 	// MaxRequestSizeMB is the maximum HTTP request body size in MB.
 	MaxRequestSizeMB int
 	// IdleTimeout is the maximum duration for an idle keep-alive connection.
@@ -106,7 +110,7 @@ func (s *Server) Start() error {
 	localAddr := fmt.Sprintf("http://%s:%s", "localhost", s.ListenPort)
 	s.httpServer = http.Server{
 		Addr:        addr,
-		Handler:     s.maxRequestBodyMiddleware(mux),
+		Handler:     s.corsMiddleware(s.maxRequestBodyMiddleware(mux)),
 		IdleTimeout: s.IdleTimeout,
 	}
 

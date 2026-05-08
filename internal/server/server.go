@@ -13,6 +13,7 @@ import (
 	"github.com/varavelio/nsqlite/internal/logger"
 	"github.com/varavelio/nsqlite/internal/stats"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
 // Config represents the configuration for a NSQLite server.
@@ -46,7 +47,8 @@ type Server struct {
 	authTokenCache sync.Map
 	authTokenSalt  string
 	isInitialized  bool
-	server         http.Server
+	rpcServer      *vdl.Server[requestProps]
+	httpServer     http.Server
 }
 
 // NewServer creates a new NSQLite server.
@@ -68,8 +70,10 @@ func NewServer(config Config) (*Server, error) {
 		authTokenCache: sync.Map{},
 		authTokenSalt:  uuid.NewString(),
 		isInitialized:  true,
-		server:         http.Server{},
+		rpcServer:      nil,
+		httpServer:     http.Server{},
 	}
+	s.rpcServer = s.newRPCServer()
 	return &s, nil
 }
 
@@ -83,49 +87,16 @@ func (s *Server) createMux() *http.ServeMux {
 	buildHandler := httputil.CreateHandlerFuncBuilder(s.errorHandler)
 	mux := http.NewServeMux()
 
-	headerAuthMws := []httputil.Middleware{
-		s.adminAuthMiddleware,
-	}
-
-	routes := []struct {
-		pattern     string
-		handler     httputil.HandlerFuncErr
-		middlewares []httputil.Middleware
-	}{
-		{
-			pattern: "/health",
-			handler: s.healthHandler,
-		},
-		{
-			pattern:     "/version",
-			handler:     s.versionHandler,
-			middlewares: headerAuthMws,
-		},
-		{
-			pattern:     "/stats",
-			handler:     s.statsHandler,
-			middlewares: headerAuthMws,
-		},
-		{
-			pattern:     "/query",
-			handler:     s.queryHandler,
-			middlewares: []httputil.Middleware{s.queryHandlerAuthMiddleware},
-		},
-	}
-
 	setResponseHeaders := func(next httputil.HandlerFuncErr) httputil.HandlerFuncErr {
 		return func(w http.ResponseWriter, r *http.Request) error {
 			w.Header().Set("x-server", "NSQLite")
 			return next(w, r)
 		}
 	}
-
-	for _, route := range routes {
-		route.middlewares = append(route.middlewares, setResponseHeaders)
-		mux.HandleFunc(
-			route.pattern, buildHandler(route.handler, route.middlewares...),
-		)
-	}
+	mux.HandleFunc(
+		"POST /rpc/{rpcName}/{operationName}",
+		buildHandler(s.rpcHandler, setResponseHeaders),
+	)
 
 	return mux
 }
@@ -140,7 +111,7 @@ func (s *Server) Start() error {
 	mux := s.createMux()
 	addr := fmt.Sprintf("%s:%s", s.ListenHost, s.ListenPort)
 	localAddr := fmt.Sprintf("http://%s:%s", "localhost", s.ListenPort)
-	s.server = http.Server{
+	s.httpServer = http.Server{
 		Addr:        addr,
 		Handler:     mux,
 		IdleTimeout: s.IdleTimeout,
@@ -151,7 +122,7 @@ func (s *Server) Start() error {
 		"listenPort", s.ListenPort,
 	)
 
-	err := s.server.ListenAndServe()
+	err := s.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
@@ -161,5 +132,5 @@ func (s *Server) Start() error {
 
 // Stop gracefully stops the server.
 func (s *Server) Stop() error {
-	return s.server.Shutdown(context.TODO())
+	return s.httpServer.Shutdown(context.TODO())
 }

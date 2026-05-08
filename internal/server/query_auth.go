@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -27,14 +26,6 @@ type authToken struct {
 	algo  cryptoutil.HashAlgo
 	value string
 }
-
-// contextKey is the private key type used for request context values.
-type contextKey string
-
-const (
-	authRoleContextKey      contextKey = "auth-role"
-	authPrincipalContextKey contextKey = "auth-principal"
-)
 
 // newAuthTokens builds the in-memory auth token list for all configured roles.
 func newAuthTokens(adminTokens, readWriteTokens, readOnlyTokens []string) []authToken {
@@ -65,37 +56,6 @@ func newAuthTokens(adminTokens, readWriteTokens, readOnlyTokens []string) []auth
 	}
 
 	return tokens
-}
-
-// adminAuthMiddleware allows only admin requests when authentication is enabled.
-func (s *Server) adminAuthMiddleware(next httputil.HandlerFuncErr) httputil.HandlerFuncErr {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		role, _, err := s.authenticateRequest(r)
-		if err != nil {
-			return err
-		}
-
-		if role != authRoleAdmin {
-			return forbiddenError()
-		}
-
-		return next(w, r)
-	}
-}
-
-// queryHandlerAuthMiddleware authenticates the request and stores its role and
-// principal identity in the request context.
-func (s *Server) queryHandlerAuthMiddleware(next httputil.HandlerFuncErr) httputil.HandlerFuncErr {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		role, principal, err := s.authenticateRequest(r)
-		if err != nil {
-			return err
-		}
-
-		ctx := context.WithValue(r.Context(), authRoleContextKey, role)
-		ctx = context.WithValue(ctx, authPrincipalContextKey, principal)
-		return next(w, r.WithContext(ctx))
-	}
 }
 
 // authenticateRequest authenticates the incoming request and resolves its role
@@ -181,17 +141,4 @@ func forbiddenError() error {
 		errors.New("Forbidden"),
 		"Forbidden",
 	)
-}
-
-// getAuthRoleFromContext reads the authenticated role from the request context.
-func getAuthRoleFromContext(ctx context.Context) (authRole, bool) {
-	role, ok := ctx.Value(authRoleContextKey).(authRole)
-	return role, ok
-}
-
-// getAuthPrincipalFromContext reads the authenticated principal identity from
-// the request context.
-func getAuthPrincipalFromContext(ctx context.Context) (string, bool) {
-	principal, ok := ctx.Value(authPrincipalContextKey).(string)
-	return principal, ok
 }

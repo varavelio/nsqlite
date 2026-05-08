@@ -1,142 +1,109 @@
 package server
 
 import (
-	"context"
-	"errors"
-	"net/http"
+	"encoding/base64"
+	"fmt"
+	"strings"
 	"time"
 
-	"github.com/goccy/go-json"
 	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/sqlite"
-	"github.com/varavelio/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
 func (s *Server) maxRequestSize() int64 {
 	if s.MaxRequestSizeMB <= 0 {
-		return 100 * 1024 * 1024 // 100MB default
+		return 100 * 1024 * 1024
 	}
 	return int64(s.MaxRequestSizeMB) * 1024 * 1024
 }
 
-// ResponseResult represents the structure of a query result.
-type ResponseResult struct {
-	// For all queries
-	Type string  `json:"type"`
-	Time float64 `json:"time"`
+func (s *Server) databaseQueryProc(
+	c *vdl.DatabaseQueryHandlerContext[requestProps],
+) (vdl.DatabaseQueryOutput, error) {
+	allStartedAt := time.Now()
+	results := make([]vdl.QueryResult, 0, len(c.Input.Queries))
 
-	// For error responses
-	Error string `json:"error,omitempty"`
-
-	// For begin queries
-	TxID string `json:"txId,omitempty"`
-
-	// For write queries
-	LastInsertID int64 `json:"lastInsertId,omitempty"`
-	RowsAffected int64 `json:"rowsAffected,omitempty"`
-
-	// For read and write queries that return rows
-	Columns []string `json:"columns,omitempty"`
-	Types   []string `json:"types,omitempty"`
-	Rows    [][]any  `json:"rows,omitempty"`
-}
-
-// Response represents the structure of an outgoing response.
-type Response struct {
-	Time    float64          `json:"time"`
-	Results []ResponseResult `json:"results"`
-}
-
-// Query represents a single query within a request.
-type Query struct {
-	TxID   string              `json:"txId"`
-	Query  string              `json:"query"`
-	Params []sqlite.QueryParam `json:"params"`
-}
-
-// queryHandler decodes request queries, classifies each one once, enforces
-// authorization, and executes the allowed queries.
-func (s *Server) queryHandler(w http.ResponseWriter, r *http.Request) error {
-	s.DBStats.IncHTTPRequests()
-	s.DBStats.IncQueuedHTTPRequests()
-	defer s.DBStats.DecQueuedHTTPRequests()
-
-	ctx := r.Context()
-	role, ok := getAuthRoleFromContext(ctx)
-	if !ok {
-		return httputil.NewJSONError(
-			http.StatusInternalServerError,
-			errors.New("missing auth role in request context"),
-			"Internal server error",
-		)
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, s.maxRequestSize())
-
-	queries, err := decodeQueries(r)
-	if err != nil {
-		return err
-	}
-
-	allStart := time.Now()
-	results := make([]ResponseResult, 0, len(queries))
-
-	for _, query := range queries {
-		result, shouldStop := s.executeRequestQuery(ctx, role, query)
-		if shouldStop {
-			return forbiddenError()
-		}
-
+	for _, query := range c.Input.Queries {
+		result := s.executeRequestQuery(c, query)
 		results = append(results, result)
 	}
 
-	return httputil.WriteJSON(w, http.StatusOK, Response{
-		Time:    time.Since(allStart).Seconds(),
+	return vdl.DatabaseQueryOutput{
+		Time:    time.Since(allStartedAt).Seconds(),
 		Results: results,
-	})
+	}, nil
 }
 
-// decodeQueries reads and validates the request body for the /query endpoint.
-func decodeQueries(r *http.Request) ([]Query, error) {
-	queries := []Query{}
-	if err := json.NewDecoder(r.Body).Decode(&queries); err != nil {
-		return nil, httputil.NewJSONError(
-			http.StatusBadRequest,
-			err,
-			"Failed to read request body",
-		)
-	}
-
-	return queries, nil
-}
-
-// executeRequestQuery sends a single request query to the database and formats
-// the HTTP response payload.
 func (s *Server) executeRequestQuery(
-	ctx context.Context,
-	role authRole,
-	query Query,
-) (ResponseResult, bool) {
+	c *vdl.DatabaseQueryHandlerContext[requestProps],
+	query vdl.Query,
+) vdl.QueryResult {
 	startedAt := time.Now()
 
 	if query.Query == "" {
-		return s.emptyQueryResult(ctx, query, startedAt), false
+		errorMessage := "Empty query"
+		result := vdl.QueryResult{
+			Type:  vdl.QueryResultTypeError,
+			Time:  time.Since(startedAt).Seconds(),
+			Error: &errorMessage,
+		}
+
+		s.Logger.Error(c.Context, "error executing query",
+			"query", query.Query,
+			"params", query.Params,
+			"txId", vdl.Val(query.TxId),
+			"error", "empty query",
+		)
+
+		return result
 	}
 
-	principal, _ := getAuthPrincipalFromContext(ctx)
+	params, err := sqliteParamsFromVDL(query.Params)
+	if err != nil {
+		errorMessage := err.Error()
+		result := vdl.QueryResult{
+			Type:  vdl.QueryResultTypeError,
+			Time:  time.Since(startedAt).Seconds(),
+			Error: &errorMessage,
+		}
 
-	result, err := s.DB.Query(ctx, db.Query{
-		TxID:    query.TxID,
+		s.Logger.Error(c.Context, "error executing query",
+			"query", query.Query,
+			"params", query.Params,
+			"txId", vdl.Val(query.TxId),
+			"error", err.Error(),
+		)
+
+		return result
+	}
+
+	result, err := s.DB.Query(c.Context, db.Query{
+		TxID:    vdl.Val(query.TxId),
 		Query:   query.Query,
-		Params:  query.Params,
-		Role:    authorizerRoleForAuthRole(role),
-		TxOwner: principal,
+		Params:  params,
+		Role:    authorizerRoleForAuthRole(c.Props.Role),
+		TxOwner: c.Props.Principal,
 	})
 	if err != nil {
-		return s.executionErrorResult(ctx, query, startedAt, err), false
+		errorMessage := err.Error()
+		queryResult := vdl.QueryResult{
+			Type:  vdl.QueryResultTypeError,
+			Time:  time.Since(startedAt).Seconds(),
+			Error: &errorMessage,
+		}
+
+		s.Logger.Error(c.Context, "error executing query",
+			"query", query.Query,
+			"params", query.Params,
+			"txId", vdl.Val(query.TxId),
+			"error", err.Error(),
+		)
+
+		return queryResult
 	}
 
-	return buildResponseResult(startedAt, result), false
+	return queryResultFromDB(startedAt, result)
 }
 
 func authorizerRoleForAuthRole(role authRole) sqlite.AuthorizerRole {
@@ -150,84 +117,204 @@ func authorizerRoleForAuthRole(role authRole) sqlite.AuthorizerRole {
 	}
 }
 
-// emptyQueryResult builds the response payload for an empty query.
-func (s *Server) emptyQueryResult(
-	ctx context.Context,
-	query Query,
-	startedAt time.Time,
-) ResponseResult {
-	result := ResponseResult{
-		Type:  "error",
-		Time:  time.Since(startedAt).Seconds(),
-		Error: "Empty query",
+func sqliteParamsFromVDL(params *[]vdl.QueryParam) ([]sqlite.QueryParam, error) {
+	if params == nil {
+		return nil, nil
 	}
 
-	s.Logger.Error(ctx, "error executing query",
-		"query", query.Query,
-		"params", query.Params,
-		"txId", query.TxID,
-		"error", "empty query",
-	)
+	converted := make([]sqlite.QueryParam, 0, len(*params))
+	for _, param := range *params {
+		value, err := sqliteValueFromVDL(param.Value)
+		if err != nil {
+			return nil, err
+		}
 
-	return result
-}
-
-// executionErrorResult builds the response payload for a query execution failure.
-func (s *Server) executionErrorResult(
-	ctx context.Context,
-	query Query,
-	startedAt time.Time,
-	err error,
-) ResponseResult {
-	result := ResponseResult{
-		Type:  "error",
-		Time:  time.Since(startedAt).Seconds(),
-		Error: err.Error(),
+		converted = append(converted, sqlite.QueryParam{
+			Name:  vdl.Val(param.Name),
+			Value: value,
+		})
 	}
 
-	s.Logger.Error(ctx, "error executing query",
-		"query", query.Query,
-		"params", query.Params,
-		"txId", query.TxID,
-		"error", err.Error(),
-	)
-
-	return result
+	return converted, nil
 }
 
-// buildResponseResult converts a database query result into an HTTP response result.
-func buildResponseResult(startedAt time.Time, result db.QueryResult) ResponseResult {
-	base := ResponseResult{
-		Type: string(result.Type),
+func sqliteValueFromVDL(value vdl.SqliteValue) (any, error) {
+	fieldCount := 0
+	var converted any
+
+	if value.Null != nil && *value.Null {
+		fieldCount++
+		converted = nil
+	}
+	if value.Integer != nil {
+		fieldCount++
+		converted = *value.Integer
+	}
+	if value.Real != nil {
+		fieldCount++
+		converted = *value.Real
+	}
+	if value.Text != nil {
+		fieldCount++
+		converted = *value.Text
+	}
+	if value.Blob != nil {
+		fieldCount++
+		decoded, err := base64.StdEncoding.DecodeString(*value.Blob)
+		if err != nil {
+			return nil, fmt.Errorf("decode blob parameter: %w", err)
+		}
+		converted = decoded
+	}
+
+	if fieldCount != 1 {
+		return nil, fmt.Errorf("exactly one SQLite value field must be set")
+	}
+
+	return converted, nil
+}
+
+func queryResultFromDB(startedAt time.Time, result db.QueryResult) vdl.QueryResult {
+	queryResult := vdl.QueryResult{
+		Type: queryResultTypeFromDB(result.Type),
 		Time: time.Since(startedAt).Seconds(),
 	}
 
-	if result.Type == db.QueryTypeBegin {
-		base.TxID = result.TxID
-		return base
+	if result.TxID != "" {
+		queryResult.TxId = &result.TxID
 	}
-
-	if result.Type == db.QueryTypeCommit || result.Type == db.QueryTypeRollback {
-		return base
-	}
-
 	if result.Type == db.QueryTypeWrite {
-		base.LastInsertID = result.LastInsertID
-		base.RowsAffected = result.RowsAffected
-		base.Columns = result.Columns
-		base.Types = result.Types
-		base.Rows = result.Rows
-		return base
+		queryResult.LastInsertId = &result.LastInsertID
+		queryResult.RowsAffected = &result.RowsAffected
+	}
+	if len(result.Columns) > 0 {
+		columns := append([]string(nil), result.Columns...)
+		queryResult.Columns = &columns
+	}
+	if len(result.Types) > 0 {
+		types := make([]vdl.SqliteStorageClass, 0, len(result.Types))
+		for _, valueType := range result.Types {
+			types = append(types, sqliteStorageClassFromString(valueType))
+		}
+		queryResult.Types = &types
+	}
+	if len(result.Rows) > 0 {
+		rows := make([][]vdl.SqliteValue, 0, len(result.Rows))
+		for _, row := range result.Rows {
+			convertedRow := make([]vdl.SqliteValue, 0, len(row))
+			for _, value := range row {
+				convertedRow = append(convertedRow, sqliteValueToVDL(value))
+			}
+			rows = append(rows, convertedRow)
+		}
+		queryResult.Rows = &rows
 	}
 
-	if result.Type == db.QueryTypeRead {
-		base.Columns = result.Columns
-		base.Types = result.Types
-		base.Rows = result.Rows
-		return base
+	return queryResult
+}
+
+func queryResultTypeFromDB(queryType db.QueryType) vdl.QueryResultType {
+	switch queryType {
+	case db.QueryTypeRead:
+		return vdl.QueryResultTypeRead
+	case db.QueryTypeWrite:
+		return vdl.QueryResultTypeWrite
+	case db.QueryTypeBegin:
+		return vdl.QueryResultTypeBegin
+	case db.QueryTypeCommit:
+		return vdl.QueryResultTypeCommit
+	case db.QueryTypeRollback:
+		return vdl.QueryResultTypeRollback
+	default:
+		return vdl.QueryResultTypeError
+	}
+}
+
+func sqliteStorageClassFromString(valueType string) vdl.SqliteStorageClass {
+	upper := strings.ToUpper(strings.TrimSpace(valueType))
+
+	switch upper {
+	case "NULL":
+		return vdl.SqliteStorageClassNull
+	case "INTEGER":
+		return vdl.SqliteStorageClassInteger
+	case "REAL":
+		return vdl.SqliteStorageClassReal
+	case "TEXT":
+		return vdl.SqliteStorageClassText
+	case "BLOB":
+		return vdl.SqliteStorageClassBlob
 	}
 
-	base.Type = "error"
-	base.Error = "Unknown query response type: " + string(result.Type)
-	return base
+	switch {
+	case strings.Contains(upper, "INT"):
+		return vdl.SqliteStorageClassInteger
+	case strings.Contains(upper, "CHAR"),
+		strings.Contains(upper, "CLOB"),
+		strings.Contains(upper, "TEXT"),
+		strings.Contains(upper, "DATE"),
+		strings.Contains(upper, "TIME"):
+		return vdl.SqliteStorageClassText
+	case strings.Contains(upper, "BLOB") || upper == "":
+		return vdl.SqliteStorageClassBlob
+	case strings.Contains(upper, "REAL"),
+		strings.Contains(upper, "FLOA"),
+		strings.Contains(upper, "DOUB"),
+		strings.Contains(upper, "NUMERIC"),
+		strings.Contains(upper, "DECIMAL"),
+		strings.Contains(upper, "BOOLEAN"):
+		return vdl.SqliteStorageClassReal
+	default:
+		return vdl.SqliteStorageClassText
+	}
+}
+
+func sqliteValueToVDL(value any) vdl.SqliteValue {
+	switch typed := value.(type) {
+	case nil:
+		isNull := true
+		return vdl.SqliteValue{Null: &isNull}
+	case int:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case int8:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case int16:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case int32:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case int64:
+		return vdl.SqliteValue{Integer: &typed}
+	case uint:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case uint8:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case uint16:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case uint32:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case uint64:
+		converted := int64(typed)
+		return vdl.SqliteValue{Integer: &converted}
+	case float32:
+		converted := float64(typed)
+		return vdl.SqliteValue{Real: &converted}
+	case float64:
+		return vdl.SqliteValue{Real: &typed}
+	case string:
+		return vdl.SqliteValue{Text: &typed}
+	case []byte:
+		converted := base64.StdEncoding.EncodeToString(typed)
+		return vdl.SqliteValue{Blob: &converted}
+	default:
+		fallback := fmt.Sprint(typed)
+		return vdl.SqliteValue{Text: &fallback}
+	}
 }

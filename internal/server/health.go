@@ -1,22 +1,23 @@
 package server
 
 import (
-	"net/http"
+	"fmt"
 
 	"github.com/varavelio/nsqlite/internal/db"
-	"github.com/varavelio/nsqlite/internal/util/httputil"
+	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
-// healthHandler verifies that the server can still perform a simple database read.
-func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) error {
-	_, err := s.DB.Query(r.Context(), db.Query{
-		Query: "SELECT 1",
-	})
+func (s *Server) systemHealthProc(
+	c *vdl.SystemHealthHandlerContext[requestProps],
+) (vdl.SystemHealthOutput, error) {
+	_, err := s.DB.Query(c.Context, db.Query{Query: "SELECT 1"})
 	if err != nil {
-		return httputil.NewJSONError(
-			http.StatusInternalServerError, err, "Failed to query the database",
-		)
+		return vdl.SystemHealthOutput{}, fmt.Errorf("failed to query the database: %w", err)
 	}
 
-	return httputil.WriteString(w, http.StatusOK, "OK")
+	return vdl.SystemHealthOutput{
+		Healthy:  true,
+		Database: true,
+		Message:  "OK",
+	}, nil
 }

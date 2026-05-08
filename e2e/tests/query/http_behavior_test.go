@@ -8,7 +8,7 @@ import (
 	"github.com/varavelio/nsqlite/e2e/harness"
 )
 
-func TestReadOnlyBatchStopsOnForbiddenQueryWithoutExecutingRemainingQueries(t *testing.T) {
+func TestReadOnlyBatchReturnsSQLiteErrorAndContinuesWithSafeQueries(t *testing.T) {
 	t.Parallel()
 
 	server := harness.StartServer(t, harness.ServerConfig{
@@ -23,14 +23,19 @@ func TestReadOnlyBatchStopsOnForbiddenQueryWithoutExecutingRemainingQueries(t *t
 		{Query: "CREATE TABLE blocked (id INTEGER PRIMARY KEY);"},
 		{Query: "SELECT 2;"},
 	}, "read-only-token")
-	require.Equal(t, http.StatusForbidden, response.StatusCode)
+	require.Equal(t, http.StatusOK, response.StatusCode)
 
-	apiError := harness.DecodeJSON[harness.APIError](t, response)
-	require.Equal(t, "Forbidden", apiError.Error)
-	require.Equal(t, "Forbidden", apiError.Message)
+	queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+	require.Len(t, queryResponse.Results, 3)
+	require.Equal(t, "read", queryResponse.Results[0].Type)
+	require.Equal(t, [][]any{{float64(1)}}, queryResponse.Results[0].Rows)
+	require.Equal(t, "error", queryResponse.Results[1].Type)
+	require.Contains(t, queryResponse.Results[1].Error, "23: authorization denied")
+	require.Equal(t, "read", queryResponse.Results[2].Type)
+	require.Equal(t, [][]any{{float64(2)}}, queryResponse.Results[2].Rows)
 
 	after := server.Stats(t, "admin-token")
-	require.Equal(t, before.Totals.Reads+1, after.Totals.Reads)
+	require.Equal(t, before.Totals.Reads+2, after.Totals.Reads)
 	require.Equal(t, before.Totals.Writes, after.Totals.Writes)
 
 	blockedTable := server.Query(t, "admin-token", harness.Query{

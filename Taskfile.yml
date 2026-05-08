@@ -38,18 +38,12 @@ tasks:
       - go mod download
       - go run ./scripts/fetch-sqlite/main.go
       - npm install
-      - cd ./ui && npm install
-
-  devui:
-    desc: Start the development server for the UI
-    cmd: cd ./ui && npx --no vite dev --host 0.0.0.0
 
   build:
     desc: Build the binary for the current platform
     deps:
       - codegen
     cmds:
-      - cd ./ui && npx --no svelte-kit sync && npx --no vite build
       - mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
 
   build:entrypoint:
@@ -70,16 +64,13 @@ tasks:
     desc: Format all code
     cmds:
       - npx --no dprint fmt --config ./dprint.json --log-level warn
-      - npx --no biome format --write --config-path ./biome.json --log-level warn .
       - golangci-lint fmt ./...
 
   lint:
     desc: Lint all code
     cmds:
       - npx --no dprint check --config ./dprint.json --log-level warn
-      - npx --no biome check --config-path ./biome.json --log-level warn .
       - golangci-lint run ./...
-      - cd ./ui && npx --no svelte-kit sync && npx --no svelte-check --tsconfig ./tsconfig.json
 
   test:
     desc: Test all code

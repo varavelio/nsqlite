@@ -25,6 +25,9 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 		AuthTokenRW: rwTokens.multiTokenServerConfigValue(),
 		AuthTokenRO: roTokens.multiTokenServerConfigValue(),
 	})
+	server.Query(t, adminTokens.plainClient, harness.Query{
+		Query: "CREATE TABLE IF NOT EXISTS rw_access (id INTEGER PRIMARY KEY, name TEXT);",
+	})
 
 	t.Run(
 		"admin plaintext bcrypt and argon2 tokens access admin endpoints and writes",
@@ -63,7 +66,7 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 						t,
 						token,
 						harness.Query{
-							Query: "CREATE TABLE IF NOT EXISTS rw_access (id INTEGER PRIMARY KEY);",
+							Query: "INSERT INTO rw_access (name) VALUES ('created-by-rw');",
 						},
 					)
 					require.Equal(t, "write", writeResponse.Results[0].Type)
@@ -185,14 +188,18 @@ func TestSharedTokenRolePrecedenceIsObservable(t *testing.T) {
 
 	t.Run("read-write token wins over read-only", func(t *testing.T) {
 		server := harness.StartServer(t, harness.ServerConfig{
+			AuthToken:   "admin-token",
 			AuthTokenRW: "shared-token",
 			AuthTokenRO: "shared-token",
+		})
+		server.Query(t, "admin-token", harness.Query{
+			Query: "CREATE TABLE shared_rw (id INTEGER PRIMARY KEY, name TEXT);",
 		})
 
 		writeResponse := server.Query(
 			t,
 			"shared-token",
-			harness.Query{Query: "CREATE TABLE shared_rw (id INTEGER PRIMARY KEY);"},
+			harness.Query{Query: "INSERT INTO shared_rw (name) VALUES ('shared');"},
 		)
 		require.Equal(t, "write", writeResponse.Results[0].Type)
 
@@ -205,11 +212,15 @@ func TestSharedTokenRolePrecedenceIsObservable(t *testing.T) {
 	})
 }
 
-func TestReadOnlyTokenRejectsWriteTransactionAndMixedBatchOperations(t *testing.T) {
+func TestReadOnlyTokenReceivesSQLiteAuthorizationErrorsForWriteAndTransactionQueries(t *testing.T) {
 	t.Parallel()
 
 	server := harness.StartServer(t, harness.ServerConfig{
+		AuthToken:   "admin-token",
 		AuthTokenRO: "read-only-token",
+	})
+	server.Query(t, "admin-token", harness.Query{
+		Query: "CREATE TABLE blocked_batch (id INTEGER PRIMARY KEY);",
 	})
 
 	readResponse := server.Query(t, "read-only-token", harness.Query{Query: "SELECT 1;"})
@@ -228,24 +239,16 @@ func TestReadOnlyTokenRejectsWriteTransactionAndMixedBatchOperations(t *testing.
 	}{
 		{
 			name:    "write",
-			queries: []harness.Query{{Query: "CREATE TABLE blocked (id INTEGER PRIMARY KEY);"}},
+			queries: []harness.Query{{Query: "INSERT INTO blocked_batch DEFAULT VALUES;"}},
 		},
 		{
 			name:    "begin",
 			queries: []harness.Query{{Query: "BEGIN;"}},
 		},
 		{
-			name:    "commit",
-			queries: []harness.Query{{Query: "COMMIT;"}},
-		},
-		{
-			name:    "rollback",
-			queries: []harness.Query{{Query: "ROLLBACK;"}},
-		},
-		{
 			name: "mixed batch",
 			queries: []harness.Query{
-				{Query: "CREATE TABLE blocked_batch (id INTEGER PRIMARY KEY);"},
+				{Query: "INSERT INTO blocked_batch DEFAULT VALUES;"},
 				{Query: "SELECT 1;"},
 			},
 		},
@@ -258,7 +261,43 @@ func TestReadOnlyTokenRejectsWriteTransactionAndMixedBatchOperations(t *testing.
 				testCase.queries,
 				"Bearer read-only-token",
 			)
-			assertAPIError(t, response, http.StatusForbidden, "Forbidden")
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+			require.Equal(t, "error", queryResponse.Results[0].Type)
+			require.Contains(t, queryResponse.Results[0].Error, "23: authorization denied")
+
+			if testCase.name == "mixed batch" {
+				require.Len(t, queryResponse.Results, 2)
+				require.Equal(t, "read", queryResponse.Results[1].Type)
+			}
+		})
+	}
+
+	for _, testCase := range []struct {
+		name  string
+		query string
+	}{
+		{name: "commit active transaction", query: "COMMIT;"},
+		{name: "rollback active transaction", query: "ROLLBACK;"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			adminBegin := server.Query(t, "admin-token", harness.Query{Query: "BEGIN;"})
+			txID := adminBegin.Results[0].TxID
+
+			response := postJSONWithAuthorization(
+				t,
+				server,
+				"/query",
+				[]harness.Query{{TxID: txID, Query: testCase.query}},
+				"Bearer read-only-token",
+			)
+			require.Equal(t, http.StatusOK, response.StatusCode)
+			queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+			require.Equal(t, "error", queryResponse.Results[0].Type)
+			require.Contains(t, queryResponse.Results[0].Error, "transaction ID does not match")
+
+			cleanup := server.Query(t, "admin-token", harness.Query{Query: "ROLLBACK;", TxID: txID})
+			require.Equal(t, "rollback", cleanup.Results[0].Type)
 		})
 	}
 
@@ -266,7 +305,7 @@ func TestReadOnlyTokenRejectsWriteTransactionAndMixedBatchOperations(t *testing.
 		t,
 		"read-only-token",
 		harness.Query{
-			Query: "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'blocked_batch';",
+			Query: "SELECT COUNT(*) FROM blocked_batch;",
 		},
 	)
 	require.Equal(t, [][]any{{float64(0)}}, tableCheck.Results[0].Rows)

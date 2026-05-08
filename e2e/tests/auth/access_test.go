@@ -46,7 +46,13 @@ func TestMultipleAdminTokensSupportPlaintextAndBcrypt(t *testing.T) {
 func TestReadWriteTokenCanReadAndWrite(t *testing.T) {
 	t.Parallel()
 
-	server := harness.StartServer(t, harness.ServerConfig{AuthTokenRW: "rw-plain rw-plain-2"})
+	server := harness.StartServer(t, harness.ServerConfig{
+		AuthToken:   "admin-token",
+		AuthTokenRW: "rw-plain rw-plain-2",
+	})
+	server.Query(t, "admin-token", harness.Query{
+		Query: "CREATE TABLE test (id INTEGER PRIMARY KEY, name TEXT);",
+	})
 
 	for _, token := range []string{"rw-plain", "rw-plain-2"} {
 		t.Run(token, func(t *testing.T) {
@@ -58,7 +64,7 @@ func TestReadWriteTokenCanReadAndWrite(t *testing.T) {
 	writeResponse := server.Query(
 		t,
 		"rw-plain",
-		harness.Query{Query: "CREATE TABLE test (id INTEGER PRIMARY KEY);"},
+		harness.Query{Query: "INSERT INTO test (name) VALUES ('created-by-rw');"},
 	)
 	require.Equal(t, "write", writeResponse.Results[0].Type)
 }

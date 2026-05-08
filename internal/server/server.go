@@ -34,8 +34,6 @@ type Config struct {
 	ListenHost string
 	// ListenPort is the port to listen on.
 	ListenPort string
-	// DisableCORS disables CORS response headers and preflight handling.
-	DisableCORS bool
 	// CORS controls cross-origin request behavior.
 	CORS CORSConfig
 	// MaxRequestSizeMB is the maximum HTTP request body size in MB.
@@ -57,6 +55,10 @@ type Server struct {
 
 // NewServer creates a new NSQLite server.
 func NewServer(config Config) (*Server, error) {
+	if len(config.CORS.AllowedOrigins) == 0 {
+		return nil, fmt.Errorf("cors allowed origins must contain at least one origin")
+	}
+
 	if config.ListenHost == "" {
 		config.ListenHost = "0.0.0.0"
 	}

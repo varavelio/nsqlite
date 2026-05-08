@@ -15,7 +15,7 @@ type CORSConfig struct {
 const defaultCORSAllowedMethods = "GET, HEAD, POST, OPTIONS"
 
 func (s *Server) corsMiddleware(next http.Handler) http.Handler {
-	if s.DisableCORS || len(s.CORS.AllowedOrigins) == 0 {
+	if len(s.CORS.AllowedOrigins) == 0 {
 		return next
 	}
 

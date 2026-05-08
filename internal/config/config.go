@@ -20,7 +20,6 @@ type Config struct {
 	DataDir               string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"                             help:"Directory for NSQLite database files"                                                                                        default:"/data"`
 	ListenHost            string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"                       help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
 	ListenPort            string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"                       help:"Port for the server to listen on"                                                                                            default:"9876"`
-	DisableCORS           bool          `arg:"--disable-cors,env:NSQLITE_DISABLE_CORS"                     help:"Disable CORS response headers and preflight handling."`
 	CORSAllowedOriginsRaw string        `arg:"--cors-allowed-origins,env:NSQLITE_CORS_ALLOWED_ORIGINS"     help:"Comma-separated list of allowed CORS origins. Use * to allow any origin when credentials are disabled."                      default:"*"`
 	CORSAllowedHeadersRaw string        `arg:"--cors-allowed-headers,env:NSQLITE_CORS_ALLOWED_HEADERS"     help:"Comma-separated list of allowed CORS request headers. Use * to allow any requested header."                                  default:"Accept,Authorization,Content-Type"`
 	CORSAllowCredentials  bool          `arg:"--cors-allow-credentials,env:NSQLITE_CORS_ALLOW_CREDENTIALS" help:"Allow browsers to include credentials on cross-origin requests. Requires explicit origins."`
@@ -57,9 +56,6 @@ func (c Config) ToArgs() []string {
 	}
 	if c.ListenPort != "" {
 		args = append(args, "--listen-port", c.ListenPort)
-	}
-	if c.DisableCORS {
-		args = append(args, "--disable-cors")
 	}
 	if c.CORSAllowedOriginsRaw != "" {
 		args = append(args, "--cors-allowed-origins", c.CORSAllowedOriginsRaw)
@@ -204,10 +200,6 @@ func validateCacheSize(size int) error {
 }
 
 func validateCORS(cfg Config) error {
-	if cfg.DisableCORS {
-		return nil
-	}
-
 	allowedOrigins := cfg.CORSAllowedOrigins()
 	if len(allowedOrigins) == 0 {
 		return fmt.Errorf("cors allowed origins must contain at least one origin")

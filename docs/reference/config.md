@@ -27,7 +27,6 @@ NSQLite applies CORS headers at the HTTP server layer. The defaults are intentio
 
 | Environment Variable             | CLI Flag                   | Description                                                                          | Default                             |
 | -------------------------------- | -------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
-| `NSQLITE_DISABLE_CORS`           | `--disable-cors`           | Disable CORS response headers and preflight handling entirely.                       | `false`                             |
 | `NSQLITE_CORS_ALLOWED_ORIGINS`   | `--cors-allowed-origins`   | Comma-separated list of allowed origins. Use `*` only when credentials are disabled. | `*`                                 |
 | `NSQLITE_CORS_ALLOWED_HEADERS`   | `--cors-allowed-headers`   | Comma-separated list of request headers allowed in successful preflight responses.   | `Accept,Authorization,Content-Type` |
 | `NSQLITE_CORS_ALLOW_CREDENTIALS` | `--cors-allow-credentials` | Allow credentials on cross-origin browser requests. Requires explicit origins.       | `false`                             |

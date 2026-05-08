@@ -97,7 +97,6 @@ The container always configures NSQLite through environment variables and it has
 | `NSQLITE_DATA_DIR`               | `/data`                             | Directory used by NSQLite to store its SQLite files. The main database file is always `${NSQLITE_DATA_DIR}/database.sqlite`. |
 | `NSQLITE_LISTEN_HOST`            | `0.0.0.0`                           | Host/interface NSQLite binds to inside the container.                                                                        |
 | `NSQLITE_LISTEN_PORT`            | `9876`                              | TCP port used by the HTTP server.                                                                                            |
-| `NSQLITE_DISABLE_CORS`           | `false`                             | Disables CORS response headers and preflight handling.                                                                       |
 | `NSQLITE_CORS_ALLOWED_ORIGINS`   | `*`                                 | Comma-separated CORS origin allowlist. Use explicit origins when credentials are enabled.                                    |
 | `NSQLITE_CORS_ALLOWED_HEADERS`   | `Accept,Authorization,Content-Type` | Comma-separated CORS request headers allowed during preflight handling.                                                      |
 | `NSQLITE_CORS_ALLOW_CREDENTIALS` | `false`                             | Allows credentialed browser requests when origins are explicitly listed.                                                     |

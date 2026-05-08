@@ -41,7 +41,6 @@ type ServerConfig struct {
 	AuthTokenRW          string
 	AuthTokenRO          string
 	TxIdleTimeout        time.Duration
-	DisableCORS          bool
 	CORSAllowedOrigins   string
 	CORSAllowCredentials bool
 }
@@ -127,9 +126,6 @@ func startServerAttempt(
 	}
 	if cfg.TxIdleTimeout > 0 {
 		cmd.Env = append(cmd.Env, "NSQLITE_TX_IDLE_TIMEOUT="+cfg.TxIdleTimeout.String())
-	}
-	if cfg.DisableCORS {
-		cmd.Env = append(cmd.Env, "NSQLITE_DISABLE_CORS=true")
 	}
 	if cfg.CORSAllowedOrigins != "" {
 		cmd.Env = append(cmd.Env, "NSQLITE_CORS_ALLOWED_ORIGINS="+cfg.CORSAllowedOrigins)

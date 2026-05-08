@@ -100,6 +100,26 @@ func TestCORSMiddleware(t *testing.T) {
 	})
 }
 
+func TestNewServer(t *testing.T) {
+	t.Run("returns an error when CORS is enabled without allowed origins", func(t *testing.T) {
+		_, err := NewServer(Config{Logger: logger.NewLogger()})
+
+		require.EqualError(t, err, "cors allowed origins must contain at least one origin")
+	})
+
+	t.Run("allows configured CORS origins", func(t *testing.T) {
+		server, err := NewServer(Config{
+			Logger: logger.NewLogger(),
+			CORS: CORSConfig{
+				AllowedOrigins: []string{"*"},
+			},
+		})
+
+		require.NoError(t, err)
+		require.NotNil(t, server)
+	})
+}
+
 func newTestServer(t *testing.T, cfg Config) *Server {
 	t.Helper()
 

@@ -43,7 +43,6 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		"dataDir", conf.DataDir,
 		"listenHost", conf.ListenHost,
 		"listenPort", conf.ListenPort,
-		"disableCORS", conf.DisableCORS,
 		"corsAllowedOrigins", conf.CORSAllowedOrigins(),
 		"corsAllowedHeaders", conf.CORSAllowedHeaders(),
 		"corsAllowCredentials", conf.CORSAllowCredentials,
@@ -84,7 +83,6 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		ReadOnlyAuthTokens:  conf.ReadOnlyAuthTokens(),
 		ListenHost:          conf.ListenHost,
 		ListenPort:          conf.ListenPort,
-		DisableCORS:         conf.DisableCORS,
 		CORS: server.CORSConfig{
 			AllowedOrigins:   conf.CORSAllowedOrigins(),
 			AllowedHeaders:   conf.CORSAllowedHeaders(),

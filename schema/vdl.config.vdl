@@ -41,7 +41,7 @@ const config = {
       }
     }
     {
-      src "varavelio/vdl-plugin-rpc-go@v0.1.1"
+      src "varavelio/vdl-plugin-rpc-go@v0.1.2"
       schema "./index.vdl"
       outDir "../internal/vdl"
       options {

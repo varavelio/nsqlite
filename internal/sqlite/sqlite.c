@@ -33,9 +33,92 @@ static int cust_authorizer_is_internal_table(const char *name) {
   return name != NULL && strncmp(name, "sqlite_", 7) == 0;
 }
 
+// Built-in scalar and aggregate functions that are safe for READ_WRITE and
+// READ_ONLY roles.  All items are side-effect-free from a database-modification
+// perspective.  The only notable omission is load_extension(), which can load
+// arbitrary shared libraries.
+static const char *allowed_function_names[] = {
+    "abs",                       "avg",
+    "coalesce",                  "concat",
+    "date",                      "datetime",
+    "group_concat",              "hex",
+    "instr",                     "json",
+    "json_each",                 "json_extract",
+    "json_insert",               "json_object",
+    "json_remove",               "json_replace",
+    "json_valid",                "julianday",
+    "like",                      "likelihood",
+    "ltrim",                     "max",
+    "octet_length",              "printf",
+    "randomblob",                "replace",
+    "changes",                   "char",
+    "concat_ws",                 "count",
+    "format",                    "glob",
+    "ifnull",                    "iif",
+    "json_array",                "json_array_length",
+    "json_group_array",          "json_group_object",
+    "json_patch",                "json_quote",
+    "json_set",                  "json_type",
+    "last_insert_rowid",         "length",
+    "likely",                    "lower",
+    "min",                       "nullif",
+    "quote",                     "random",
+    "round",                     "rtrim",
+    "sign",                      "sqlite_compileoption_get",
+    "sqlite_compileoption_used", "sqlite_offset",
+    "sqlite_version",            "strftime",
+    "sum",                       "time",
+    "total_changes",             "trim",
+    "unicode",                   "unlikely",
+    "substr",                    "substring",
+    "timediff",                  "total",
+    "typeof",                    "unhex",
+    "upper",                     "zeroblob",
+    "sqlite_source_id",
+    NULL
+};
+
+static int cust_authorizer_is_allowed_function(const char *name) {
+  if (name == NULL) {
+    return 0;
+  }
+  for (int i = 0; allowed_function_names[i] != NULL; i++) {
+    if (strcmp(name, allowed_function_names[i]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
+// Read-only PRAGMAs that are safe for READ_WRITE and READ_ONLY roles. PRAGMAs
+// that change database state (journal_mode, synchronous, foreign_keys, …) are
+// intentionally excluded.
+static const char *readonly_pragma_names[] = {
+    "collation_list",   "compile_options",    "data_version",
+    "database_list",    "defer_foreign_keys", "foreign_key_check",
+    "foreign_key_list", "freelist_count",     "function_list",
+    "index_info",       "index_list",         "index_xinfo",
+    "integrity_check",  "module_list",        "page_count",
+    "page_size",        "pragma_list",        "quick_check",
+    "schema_version",   "table_info",         "table_xinfo",
+    "user_version",
+    NULL
+};
+
+static int cust_authorizer_is_readonly_pragma(const char *name) {
+  if (name == NULL) {
+    return 0;
+  }
+  for (int i = 0; readonly_pragma_names[i] != NULL; i++) {
+    if (strcmp(name, readonly_pragma_names[i]) == 0) {
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int cust_sqlite3_authorizer(void *pUserData, int action, const char *arg3,
                                    const char *arg4, const char *arg5, const char *arg6) {
-  (void)arg4;
   (void)arg5;
   (void)arg6;
 
@@ -52,8 +135,15 @@ static int cust_sqlite3_authorizer(void *pUserData, int action, const char *arg3
     switch (action) {
     case SQLITE_SELECT:
     case SQLITE_READ:
-    case SQLITE_FUNCTION:
     case SQLITE_RECURSIVE:
+      return SQLITE_OK;
+
+    case SQLITE_FUNCTION:
+      return cust_authorizer_is_allowed_function(arg4) ? SQLITE_OK : SQLITE_DENY;
+
+    case SQLITE_PRAGMA:
+      return cust_authorizer_is_readonly_pragma(arg3) ? SQLITE_OK : SQLITE_DENY;
+
     case SQLITE_TRANSACTION:
     case SQLITE_SAVEPOINT:
       return SQLITE_OK;
@@ -72,9 +162,14 @@ static int cust_sqlite3_authorizer(void *pUserData, int action, const char *arg3
     switch (action) {
     case SQLITE_SELECT:
     case SQLITE_READ:
-    case SQLITE_FUNCTION:
     case SQLITE_RECURSIVE:
       return SQLITE_OK;
+
+    case SQLITE_FUNCTION:
+      return cust_authorizer_is_allowed_function(arg4) ? SQLITE_OK : SQLITE_DENY;
+
+    case SQLITE_PRAGMA:
+      return cust_authorizer_is_readonly_pragma(arg3) ? SQLITE_OK : SQLITE_DENY;
     }
     return SQLITE_DENY;
   }

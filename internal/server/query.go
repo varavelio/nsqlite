@@ -11,13 +11,6 @@ import (
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
-func (s *Server) maxRequestSize() int64 {
-	if s.MaxRequestSizeMB <= 0 {
-		return 100 * 1024 * 1024
-	}
-	return int64(s.MaxRequestSizeMB) * 1024 * 1024
-}
-
 func (s *Server) databaseQueryProc(
 	c *vdl.DatabaseQueryHandlerContext[requestProps],
 ) (vdl.DatabaseQueryOutput, error) {

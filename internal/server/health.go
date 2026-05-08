@@ -1,8 +1,6 @@
 package server
 
 import (
-	"fmt"
-
 	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
@@ -12,7 +10,12 @@ func (s *Server) systemHealthProc(
 ) (vdl.SystemHealthOutput, error) {
 	_, err := s.DB.Query(c.Context, db.Query{Query: "SELECT 1"})
 	if err != nil {
-		return vdl.SystemHealthOutput{}, fmt.Errorf("failed to query the database: %w", err)
+		s.Logger.Error(c.Context, "health check failed", "error", err.Error())
+		return vdl.SystemHealthOutput{
+			Healthy:  false,
+			Database: false,
+			Message:  "Database unavailable",
+		}, nil
 	}
 
 	return vdl.SystemHealthOutput{

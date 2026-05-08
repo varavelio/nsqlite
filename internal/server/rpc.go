@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	json "github.com/goccy/go-json"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
@@ -28,11 +29,9 @@ func (s *Server) rpcHandler(w http.ResponseWriter, r *http.Request) error {
 	rpcName := r.PathValue("rpcName")
 	operationName := r.PathValue("operationName")
 
-	r.Body = http.MaxBytesReader(w, r.Body, s.maxRequestSize())
-
 	props, err := s.authorizeRPCRequest(r, rpcName, operationName)
 	if err != nil {
-		return err
+		return s.writeRPCError(w, err)
 	}
 
 	if rpcName == "Database" && operationName == "query" {
@@ -89,4 +88,22 @@ func (s *Server) rpcErrorHandler(c *vdl.HandlerContext[requestProps, any], err e
 	)
 
 	return vdl.Error{Message: message}
+}
+
+func (s *Server) writeRPCError(w http.ResponseWriter, err error) error {
+	message := err.Error()
+	var jsonErr httputil.JSONError
+	if errors.As(err, &jsonErr) && jsonErr.SafeMessage != "" {
+		message = jsonErr.SafeMessage
+	}
+
+	body, marshalErr := json.Marshal(vdl.Response[any]{
+		Ok:    false,
+		Error: vdl.Error{Message: message},
+	})
+	if marshalErr != nil {
+		return fmt.Errorf("marshal rpc error response: %w", marshalErr)
+	}
+
+	return httputil.WriteJSONBytes(w, http.StatusOK, body)
 }

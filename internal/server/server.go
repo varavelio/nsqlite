@@ -86,16 +86,9 @@ func (s *Server) IsInitialized() bool {
 func (s *Server) createMux() *http.ServeMux {
 	buildHandler := httputil.CreateHandlerFuncBuilder(s.errorHandler)
 	mux := http.NewServeMux()
-
-	setResponseHeaders := func(next httputil.HandlerFuncErr) httputil.HandlerFuncErr {
-		return func(w http.ResponseWriter, r *http.Request) error {
-			w.Header().Set("x-server", "NSQLite")
-			return next(w, r)
-		}
-	}
 	mux.HandleFunc(
 		"POST /rpc/{rpcName}/{operationName}",
-		buildHandler(s.rpcHandler, setResponseHeaders),
+		buildHandler(s.rpcHandler),
 	)
 
 	return mux
@@ -113,7 +106,7 @@ func (s *Server) Start() error {
 	localAddr := fmt.Sprintf("http://%s:%s", "localhost", s.ListenPort)
 	s.httpServer = http.Server{
 		Addr:        addr,
-		Handler:     mux,
+		Handler:     s.maxRequestBodyMiddleware(mux),
 		IdleTimeout: s.IdleTimeout,
 	}
 

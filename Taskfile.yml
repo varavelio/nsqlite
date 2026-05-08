@@ -1,5 +1,12 @@
 # yaml-language-server: $schema=https://taskfile.dev/schema.json
 
+#####################################################################
+# Docs: https://taskfile.dev                                        #
+#                                                                   #
+# Use npx with the "--no" argument to ensure that dependencies with #
+# versions different from those in package.json are not downloaded. #
+#####################################################################
+
 version: "3"
 
 vars:
@@ -31,9 +38,15 @@ tasks:
       - go mod download
       - go run ./scripts/fetch-sqlite/main.go
 
+  devui:
+    desc: Start the development server for the UI
+    cmd: cd ./ui && npx --no vite dev
+
   build:
     desc: Build the binary for the current platform
-    cmd: mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
+    cmds:
+      - cd ./ui && npx --no svelte-kit sync && npx --no vite build
+      - mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
 
   build:entrypoint:
     desc: Build the container entrypoint binary for the current platform
@@ -46,14 +59,17 @@ tasks:
   format:
     desc: Format all code
     cmds:
-      - dprint fmt --config ./dprint.json --log-level warn
+      - npx --no dprint fmt --config ./dprint.json --log-level warn
+      - npx --no biome format --write --config-path ./biome.json --log-level warn .
       - golangci-lint fmt ./...
 
   lint:
     desc: Lint all code
     cmds:
-      - dprint check --config ./dprint.json --log-level warn
+      - npx --no dprint check --config ./dprint.json --log-level warn
+      - npx --no biome check --config-path ./biome.json --log-level warn .
       - golangci-lint run ./...
+      - cd ./ui && npx --no svelte-kit sync && npx --no svelte-check --tsconfig ./tsconfig.json
 
   test:
     desc: Test all code

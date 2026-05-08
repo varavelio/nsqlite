@@ -2,6 +2,7 @@ package query_test
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -104,6 +105,102 @@ func TestTransactionsCommitMakesChangesVisibleOutsideTheTransaction(t *testing.T
 
 	afterCommit := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM users;"})
 	require.Equal(t, [][]any{{float64(1)}}, afterCommit.Results[0].Rows)
+}
+
+func TestTransactionsQueueWritesWithoutTransactionIDWhileTransactionIsActive(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+	server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE guarded_writes (id INTEGER PRIMARY KEY, val TEXT NOT NULL);",
+	})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := requireSuccessfulQueryResult(t, begin, "begin").TxID
+	require.NotEmpty(t, txID)
+
+	writeDone := make(chan harness.QueryResponse, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		writeDone <- server.Query(t, "", harness.Query{
+			Query: "INSERT INTO guarded_writes (id, val) VALUES (1, 'queued-until-active-tx-commits');",
+		})
+	})
+
+	select {
+	case response := <-writeDone:
+		t.Fatalf("standalone write completed before active transaction finished: %+v", response)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
+
+	var queuedWrite harness.QueryResponse
+	select {
+	case queuedWrite = <-writeDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("standalone write did not run after active transaction finished")
+	}
+	wg.Wait()
+	requireSuccessfulQueryResult(t, queuedWrite, "write")
+
+	afterCommit := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM guarded_writes;"})
+	require.Equal(t, [][]any{{float64(1)}}, afterCommit.Results[0].Rows)
+
+	afterTransaction := server.Query(t, "", harness.Query{
+		Query: "INSERT INTO guarded_writes (id, val) VALUES (2, 'allowed-after-transaction');",
+	})
+	requireSuccessfulQueryResult(t, afterTransaction, "write")
+}
+
+func TestTransactionsQueueStandaloneWritesThatDependOnTransactionalSchema(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{})
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	txID := requireSuccessfulQueryResult(t, begin, "begin").TxID
+	require.NotEmpty(t, txID)
+
+	create := server.Query(t, "", harness.Query{
+		Query: "CREATE TABLE queued_schema_writes (id INTEGER PRIMARY KEY, val TEXT NOT NULL);",
+		TxID:  txID,
+	})
+	requireSuccessfulQueryResult(t, create, "write")
+
+	writeDone := make(chan harness.QueryResponse, 1)
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		writeDone <- server.Query(t, "", harness.Query{
+			Query: "INSERT INTO queued_schema_writes (id, val) VALUES (1, 'after-schema-commit');",
+		})
+	})
+
+	select {
+	case response := <-writeDone:
+		t.Fatalf("standalone write completed before transactional schema committed: %+v", response)
+	case <-time.After(100 * time.Millisecond):
+	}
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
+
+	var queuedWrite harness.QueryResponse
+	select {
+	case queuedWrite = <-writeDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("standalone write did not run after transactional schema committed")
+	}
+	wg.Wait()
+	requireSuccessfulQueryResult(t, queuedWrite, "write")
+
+	afterCommit := server.Query(
+		t,
+		"",
+		harness.Query{Query: "SELECT val FROM queued_schema_writes WHERE id = 1;"},
+	)
+	require.Equal(t, [][]any{{"after-schema-commit"}}, afterCommit.Results[0].Rows)
 }
 
 func TestTransactionsRollbackDiscardsChanges(t *testing.T) {

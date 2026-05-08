@@ -62,3 +62,40 @@ func TestReadOnlyTokenCanReadButCannotWrite(t *testing.T) {
 	require.Equal(t, "write", allowedWrite.Results[0].Type)
 	require.Empty(t, allowedWrite.Results[0].Error)
 }
+
+func TestReadOnlyAuthorizationUsesSQLiteClassificationForCTEs(t *testing.T) {
+	t.Parallel()
+
+	server := harness.StartServer(t, harness.ServerConfig{
+		AuthTokenRW: "read-write-token",
+		AuthTokenRO: "read-only-token",
+	})
+	server.Query(t, "read-write-token", harness.Query{
+		Query: "CREATE TABLE cte_auth (id INTEGER PRIMARY KEY);",
+	})
+
+	readOnlyCTE := server.Query(t, "read-only-token", harness.Query{
+		Query: "WITH value(id) AS (VALUES (1)) SELECT id FROM value;",
+	})
+	require.Equal(t, harness.QueryResponse{
+		Results: []harness.QueryResult{{
+			Type:    "read",
+			Columns: []string{"id"},
+			Types:   []string{"INTEGER"},
+			Rows:    [][]any{{float64(1)}},
+		}},
+	}, readOnlyCTE)
+
+	blockedCTEWrite := server.PostJSON(t, "/query", []harness.Query{{
+		Query: "WITH value(id) AS (VALUES (1)) INSERT INTO cte_auth (id) SELECT id FROM value;",
+	}}, "read-only-token")
+	require.Equal(t, http.StatusForbidden, blockedCTEWrite.StatusCode)
+
+	allowedCTEWrite := server.Query(t, "read-write-token", harness.Query{
+		Query: "WITH value(id) AS (VALUES (1)) INSERT INTO cte_auth (id) SELECT id FROM value;",
+	})
+	require.Len(t, allowedCTEWrite.Results, 1)
+	require.Equal(t, "write", allowedCTEWrite.Results[0].Type)
+	require.Empty(t, allowedCTEWrite.Results[0].Error)
+	require.Equal(t, int64(1), allowedCTEWrite.Results[0].RowsAffected)
+}

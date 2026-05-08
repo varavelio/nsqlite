@@ -10,6 +10,12 @@
 const config = {
   version 1
 
+  hooks {
+    postGenerate [
+      "cd .. && task format"
+    ]
+  }
+
   plugins [
     {
       src "varavelio/vdl-plugin-explorer@v0.1.1"

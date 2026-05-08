@@ -5,7 +5,6 @@ Content-Type: application/json
 HTTP 200
 [Asserts]
 header "content-type" contains "application/json"
-header "x-server" == "NSQLite"
 jsonpath "$.ok" == true
 jsonpath "$.output.healthy" == true
 jsonpath "$.output.database" == true

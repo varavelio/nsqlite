@@ -81,12 +81,11 @@ func TestAdminOnlyEndpointsRejectReadWriteAndReadOnlyTokens(t *testing.T) {
 	for _, token := range []string{"rw-token", "ro-token"} {
 		t.Run(token, func(t *testing.T) {
 			response := server.StatusResponse(t, token)
-			require.Equal(t, http.StatusForbidden, response.StatusCode)
+			require.Equal(t, http.StatusOK, response.StatusCode)
 
-			apiError := harness.DecodeJSON[harness.APIError](t, response)
-			require.Equal(t, "Forbidden", apiError.Error)
-			require.Equal(t, "Forbidden", apiError.Message)
-			require.NotEmpty(t, apiError.ID)
+			rpcError := harness.DecodeJSON[harness.RPCResponse[map[string]any]](t, response)
+			require.False(t, rpcError.OK)
+			require.Equal(t, "Forbidden", rpcError.Error.Message)
 		})
 	}
 }

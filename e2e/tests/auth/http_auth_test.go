@@ -72,7 +72,7 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 					assertAPIError(
 						t,
 						server.StatusResponse(t, token),
-						http.StatusForbidden,
+						http.StatusOK,
 						"Forbidden",
 					)
 				})
@@ -91,7 +91,7 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 					assertAPIError(
 						t,
 						server.StatusResponse(t, token),
-						http.StatusForbidden,
+						http.StatusOK,
 						"Forbidden",
 					)
 				})
@@ -192,7 +192,7 @@ func TestSharedTokenRolePrecedenceIsObservable(t *testing.T) {
 		assertAPIError(
 			t,
 			server.StatusResponse(t, "shared-token"),
-			http.StatusForbidden,
+			http.StatusOK,
 			"Forbidden",
 		)
 	})
@@ -396,8 +396,7 @@ func assertAPIError(
 		string(response.Body),
 	)
 
-	apiError := harness.DecodeJSON[harness.APIError](t, response)
-	require.Equal(t, expectedMessage, apiError.Error)
-	require.Equal(t, expectedMessage, apiError.Message)
-	require.NotEmpty(t, apiError.ID)
+	rpcError := harness.DecodeJSON[harness.RPCResponse[map[string]any]](t, response)
+	require.False(t, rpcError.OK)
+	require.Equal(t, expectedMessage, rpcError.Error.Message)
 }

@@ -15,7 +15,7 @@ type RPCResponse[T any] struct {
 	Error  RPCError `json:"error"`
 }
 
-// Query matches the public `/query` request payload.
+// Query matches the Database.query request payload.
 type Query struct {
 	TxID   string       `json:"txId,omitempty"`
 	Query  string       `json:"query"`
@@ -28,7 +28,7 @@ type QueryParam struct {
 	Value any    `json:"value"`
 }
 
-// QueryResponse matches the public `/query` response payload.
+// QueryResponse matches the Database.query output payload.
 type QueryResponse struct {
 	Time    float64       `json:"time"`
 	Results []QueryResult `json:"results"`
@@ -56,14 +56,7 @@ func (r QueryResponse) WithoutTiming() QueryResponse {
 	return r
 }
 
-// APIError matches the public JSON error payload returned by NSQLite.
-type APIError struct {
-	ID      string `json:"id"`
-	Error   string `json:"error"`
-	Message string `json:"message"`
-}
-
-// LoadedStats matches the public `/stats` response payload.
+// LoadedStats matches the System.status stats payload.
 type LoadedStats struct {
 	StartedAt          string `json:"startedAt"`
 	Uptime             string `json:"uptime"`

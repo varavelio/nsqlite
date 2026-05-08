@@ -9,7 +9,7 @@ Content-Type: application/json
   ]
 }
 
-HTTP 401
+HTTP 200
 [Asserts]
-jsonpath "$.error" == "Unauthorized"
-jsonpath "$.message" == "Unauthorized"
+jsonpath "$.ok" == false
+jsonpath "$.error.message" == "Unauthorized"

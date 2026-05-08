@@ -17,11 +17,10 @@ func TestQueryEndpointRejectsRequestsWithoutATokenWhenAuthIsConfigured(t *testin
 
 	response := server.QueryResponse(t, "", harness.Query{Query: "SELECT 1;"})
 
-	require.Equal(t, http.StatusUnauthorized, response.StatusCode)
-	apiError := harness.DecodeJSON[harness.APIError](t, response)
-	require.Equal(t, "Unauthorized", apiError.Error)
-	require.Equal(t, "Unauthorized", apiError.Message)
-	require.NotEmpty(t, apiError.ID)
+	require.Equal(t, http.StatusOK, response.StatusCode)
+	rpcError := harness.DecodeJSON[harness.RPCResponse[map[string]any]](t, response)
+	require.False(t, rpcError.OK)
+	require.Equal(t, "Unauthorized", rpcError.Error.Message)
 }
 
 func TestReadOnlyTokenCanReadButCannotWrite(t *testing.T) {

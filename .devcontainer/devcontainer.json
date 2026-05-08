@@ -13,6 +13,7 @@
   "customizations": {
     "vscode": {
       "extensions": [
+        "varavel.vdl",
         "golang.go",
         "dprint.dprint",
         "JacobPfeifer.pfeifer-hurl",
@@ -26,6 +27,10 @@
         "editor.defaultFormatter": "dprint.dprint",
         "editor.codeActionsOnSave": {
           "source.fixAll.biome": "explicit"
+        },
+
+        "[vdl]": {
+          "editor.defaultFormatter": "varavel.vdl"
         },
 
         "[go]": {

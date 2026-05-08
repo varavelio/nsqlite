@@ -4,6 +4,9 @@ WORKDIR /fetcher
 
 RUN \
   apk add --quiet curl unzip && \
+  # Fetch VDL
+  curl -fsSL https://get.varavel.com/vdl | VERSION=v0.5.0-alpha.5 INSTALL_DIR=/fetcher QUIET=true sh && \
+  chmod +x ./vdl && \
   # Fetch task
   sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /fetcher v3.50.0 && \
   chmod +x ./task && \
@@ -24,6 +27,7 @@ COPY --from=node:24.15.0-trixie /usr/local/ /usr/local/
 COPY --from=golangci/golangci-lint:v2.12.1 /usr/bin/golangci-lint /usr/local/bin/golangci-lint
 
 # Install tools from the fetcher stage
+COPY --from=fetcher /fetcher/vdl /usr/local/bin/vdl
 COPY --from=fetcher /fetcher/task /usr/local/bin/task
 COPY --from=fetcher /fetcher/hurl /usr/local/bin/hurl
 COPY --from=fetcher /fetcher/litestream /usr/local/bin/litestream

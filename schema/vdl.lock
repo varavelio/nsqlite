@@ -4,6 +4,8 @@
     "https://raw.githubusercontent.com/varavelio/vdl-plugin-explorer/v0.1.1/dist/index.js": "sha256-a2e5d3cbaabab82e5b057731356a3edebe5532a61ecc6787044f4eb2ee26745e",
     "https://raw.githubusercontent.com/varavelio/vdl-plugin-go/v0.1.3/dist/index.js": "sha256-fb86487474159d068648551d7410e4989fdcaf477b317bce2a76c8e875fee90f",
     "https://raw.githubusercontent.com/varavelio/vdl-plugin-rpc-go/v0.1.2/dist/index.js": "sha256-da31800b630fcfba4e746c858b9adecfd2b148cb400a5be73495180ec813ec89",
-    "https://raw.githubusercontent.com/varavelio/vdl-plugin-rpc-openapi/v0.1.3/dist/index.js": "sha256-4cc009834bea760c3922a9e0a8ec0b7389432312f67c3d4a02819837ab5a8f91"
+    "https://raw.githubusercontent.com/varavelio/vdl-plugin-rpc-openapi/v0.1.3/dist/index.js": "sha256-4cc009834bea760c3922a9e0a8ec0b7389432312f67c3d4a02819837ab5a8f91",
+    "https://raw.githubusercontent.com/varavelio/vdl-plugin-rpc-ts/v0.1.0/dist/index.js": "sha256-dd0e1d94478af2cdbd95d566c45c77509617d4eebde80717f7dc467f04729cae",
+    "https://raw.githubusercontent.com/varavelio/vdl-plugin-ts/v0.1.4/dist/index.js": "sha256-a17e7e58896fe0c1283ac0252568766c025a84a8ed4d2d8223d971cf26087046"
   }
 }

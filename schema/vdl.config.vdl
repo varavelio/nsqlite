@@ -56,5 +56,23 @@ const config = {
         jsonPackage "github.com/goccy/go-json"
       }
     }
+    {
+      src "varavelio/vdl-plugin-ts@v0.1.4"
+      schema "./index.vdl"
+      outDir "../ui/src/lib/client"
+      options {
+        importExtension "ts"
+      }
+    }
+    {
+      src "varavelio/vdl-plugin-rpc-ts@v0.1.0"
+      schema "./index.vdl"
+      outDir "../ui/src/lib/client"
+      options {
+        target "client"
+        typesImport "./types.js"
+        importExtension "ts"
+      }
+    }
   ]
 }

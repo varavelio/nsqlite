@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -157,30 +156,6 @@ func (s *Server) emptyQueryResult(
 		"params", query.Params,
 		"txId", query.TxID,
 		"error", "empty query",
-	)
-
-	return result
-}
-
-// classificationErrorResult builds the response payload for a query classification failure.
-func (s *Server) classificationErrorResult(
-	ctx context.Context,
-	query Query,
-	startedAt time.Time,
-	err error,
-) ResponseResult {
-	wrappedErr := fmt.Errorf("failed to detect query type: %w", err)
-	result := ResponseResult{
-		Type:  "error",
-		Time:  time.Since(startedAt).Seconds(),
-		Error: wrappedErr.Error(),
-	}
-
-	s.Logger.Error(ctx, "error classifying query",
-		"query", query.Query,
-		"params", query.Params,
-		"txId", query.TxID,
-		"error", err.Error(),
 	)
 
 	return result

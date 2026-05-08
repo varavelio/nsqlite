@@ -58,6 +58,8 @@ tasks:
 
   run:
     desc: Run the project (blocking)
+    deps:
+      - build
     cmd: ./dist/nsqlite
 
   codegen:

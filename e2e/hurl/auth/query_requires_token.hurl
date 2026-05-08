@@ -1,10 +1,12 @@
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Content-Type: application/json
-[
-  {
-    "query": "SELECT 1;"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "SELECT 1;"
+    }
+  ]
+}
 
 HTTP 401
 [Asserts]

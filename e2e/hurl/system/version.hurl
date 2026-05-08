@@ -1,8 +1,11 @@
-GET {{host}}/version
+POST {{host}}/rpc/System/status
 Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+{}
 
 HTTP 200
 [Asserts]
-header "content-type" contains "text/plain"
+header "content-type" contains "application/json"
 header "x-server" == "NSQLite"
-body == "0.0.0-dev"
+jsonpath "$.ok" == true
+jsonpath "$.output.version" == "0.0.0-dev"

@@ -1,86 +1,101 @@
 # Test INSERT ... RETURNING
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer {{admin_token}}
 Content-Type: application/json
-[
-  {
-    "query": "CREATE TABLE test_returning (id INTEGER PRIMARY KEY, name TEXT);"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "CREATE TABLE test_returning (id INTEGER PRIMARY KEY, name TEXT);"
+    }
+  ]
+}
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[0].type" == "write"
+jsonpath "$.ok" == true
+jsonpath "$.output.results[0].type" == "write"
 
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer {{rw_token}}
 Content-Type: application/json
-[
-  {
-    "query": "INSERT INTO test_returning (name) VALUES ('Jane') RETURNING *;"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "INSERT INTO test_returning (name) VALUES ('Jane') RETURNING *;"
+    }
+  ]
+}
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[0].type" == "write"
-jsonpath "$.results[0].columns[0]" == "id"
-jsonpath "$.results[0].columns[1]" == "name"
-jsonpath "$.results[0].rows[0][0]" == 1
-jsonpath "$.results[0].rows[0][1]" == "Jane"
+jsonpath "$.ok" == true
+jsonpath "$.output.results[0].type" == "write"
+jsonpath "$.output.results[0].columns[0]" == "id"
+jsonpath "$.output.results[0].columns[1]" == "name"
+jsonpath "$.output.results[0].rows[0][0].integer" == 1
+jsonpath "$.output.results[0].rows[0][1].text" == "Jane"
 
 # Test queries with and without semicolons
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer {{rw_token}}
 Content-Type: application/json
-[
-  {
-    "query": "SELECT 1, 2, 3;"
-  },
-  {
-    "query": "SELECT 1, 2, 3"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "SELECT 1, 2, 3;"
+    },
+    {
+      "query": "SELECT 1, 2, 3"
+    }
+  ]
+}
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[0].rows[0][0]" == 1
-jsonpath "$.results[0].rows[0][1]" == 2
-jsonpath "$.results[0].rows[0][2]" == 3
-jsonpath "$.results[1].rows[0][0]" == 1
-jsonpath "$.results[1].rows[0][1]" == 2
-jsonpath "$.results[1].rows[0][2]" == 3
+jsonpath "$.ok" == true
+jsonpath "$.output.results[0].rows[0][0].integer" == 1
+jsonpath "$.output.results[0].rows[0][1].integer" == 2
+jsonpath "$.output.results[0].rows[0][2].integer" == 3
+jsonpath "$.output.results[1].rows[0][0].integer" == 1
+jsonpath "$.output.results[1].rows[0][1].integer" == 2
+jsonpath "$.output.results[1].rows[0][2].integer" == 3
 
 # Test structured errors
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer {{rw_token}}
 Content-Type: application/json
-[
-  {
-    "query": "SELECT * FROM non_existent_table;"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "SELECT * FROM non_existent_table;"
+    }
+  ]
+}
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[0].type" == "error"
-jsonpath "$.results[0].error" != ""
+jsonpath "$.ok" == true
+jsonpath "$.output.results[0].type" == "error"
+jsonpath "$.output.results[0].error" != ""
 
 # SQL execution errors stay inside the batch.
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer {{rw_token}}
 Content-Type: application/json
-[
-  {
-    "query": "SELECT * FROM non_existent_table;"
-  },
-  {
-    "query": "SELECT 42;"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "SELECT * FROM non_existent_table;"
+    },
+    {
+      "query": "SELECT 42;"
+    }
+  ]
+}
 
 HTTP 200
 [Asserts]
-jsonpath "$.results[0].type" == "error"
-jsonpath "$.results[1].type" == "read"
-jsonpath "$.results[1].rows[0][0]" == 42
+jsonpath "$.ok" == true
+jsonpath "$.output.results[0].type" == "error"
+jsonpath "$.output.results[1].type" == "read"
+jsonpath "$.output.results[1].rows[0][0].integer" == 42

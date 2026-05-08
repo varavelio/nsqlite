@@ -1,11 +1,13 @@
-POST {{host}}/query
+POST {{host}}/rpc/Database/query
 Authorization: Bearer invalid-token
 Content-Type: application/json
-[
-  {
-    "query": "SELECT 1;"
-  }
-]
+{
+  "queries": [
+    {
+      "query": "SELECT 1;"
+    }
+  ]
+}
 
 HTTP 401
 [Asserts]

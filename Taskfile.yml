@@ -42,7 +42,7 @@ tasks:
 
   devui:
     desc: Start the development server for the UI
-    cmd: cd ./ui && npx --no vite dev
+    cmd: cd ./ui && npx --no vite dev --host 0.0.0.0
 
   build:
     desc: Build the binary for the current platform

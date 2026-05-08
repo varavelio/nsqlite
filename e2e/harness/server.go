@@ -343,6 +343,10 @@ func normalizeExitError(err error) error {
 		return nil
 	}
 
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return nil
+	}
+
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) && exitErr.ExitCode() == -1 {
 		return nil

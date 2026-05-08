@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -13,17 +14,21 @@ import (
 
 // Config represents the configuration for nsqlited.
 type Config struct {
-	AuthToken        string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"                   help:"Admin authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for full access."`
-	AuthTokenRW      string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"             help:"Read/write authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
-	AuthTokenRO      string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"             help:"Read-only authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read access only."`
-	DataDir          string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"                       help:"Directory for NSQLite database files"                                                                                        default:"/data"`
-	ListenHost       string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"                 help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
-	ListenPort       string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"                 help:"Port for the server to listen on"                                                                                            default:"9876"`
-	TxIdleTimeout    time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT"         help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
-	MaxReadConns     int           `arg:"--max-read-conns,env:NSQLITE_MAX_READ_CONNS"           help:"Maximum number of read-only database connections"                                                                            default:"10"`
-	CacheSizeKB      int           `arg:"--cache-size-kb,env:NSQLITE_CACHE_SIZE_KB"             help:"SQLite cache size in KB per connection (negative is converted internally, just specify the positive KB value)"               default:"20000"`
-	BusyTimeout      time.Duration `arg:"--busy-timeout,env:NSQLITE_BUSY_TIMEOUT"               help:"How long SQLite waits when the database is locked by another writer. Valid time units are ns, us (or µs), ms, s, m, h"       default:"5s"`
-	MaxRequestSizeMB int           `arg:"--max-request-size-mb,env:NSQLITE_MAX_REQUEST_SIZE_MB" help:"Maximum HTTP request body size in MB for the /query endpoint"                                                                default:"100"`
+	AuthToken             string        `arg:"--auth-token,env:NSQLITE_AUTH_TOKEN"                         help:"Admin authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for full access."`
+	AuthTokenRW           string        `arg:"--auth-token-rw,env:NSQLITE_AUTH_TOKEN_RW"                   help:"Read/write authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read/write access only."`
+	AuthTokenRO           string        `arg:"--auth-token-ro,env:NSQLITE_AUTH_TOKEN_RO"                   help:"Read-only authentication token(s). Use space-separated plaintext or bcrypt/argon2 hashes for query read access only."`
+	DataDir               string        `arg:"--data-dir,env:NSQLITE_DATA_DIR"                             help:"Directory for NSQLite database files"                                                                                        default:"/data"`
+	ListenHost            string        `arg:"--listen-host,env:NSQLITE_LISTEN_HOST"                       help:"Host for the server to listen on"                                                                                            default:"0.0.0.0"`
+	ListenPort            string        `arg:"--listen-port,env:NSQLITE_LISTEN_PORT"                       help:"Port for the server to listen on"                                                                                            default:"9876"`
+	DisableCORS           bool          `arg:"--disable-cors,env:NSQLITE_DISABLE_CORS"                     help:"Disable CORS response headers and preflight handling."`
+	CORSAllowedOriginsRaw string        `arg:"--cors-allowed-origins,env:NSQLITE_CORS_ALLOWED_ORIGINS"     help:"Comma-separated list of allowed CORS origins. Use * to allow any origin when credentials are disabled."                      default:"*"`
+	CORSAllowedHeadersRaw string        `arg:"--cors-allowed-headers,env:NSQLITE_CORS_ALLOWED_HEADERS"     help:"Comma-separated list of allowed CORS request headers. Use * to allow any requested header."                                  default:"Accept,Authorization,Content-Type"`
+	CORSAllowCredentials  bool          `arg:"--cors-allow-credentials,env:NSQLITE_CORS_ALLOW_CREDENTIALS" help:"Allow browsers to include credentials on cross-origin requests. Requires explicit origins."`
+	TxIdleTimeout         time.Duration `arg:"--tx-idle-timeout,env:NSQLITE_TX_IDLE_TIMEOUT"               help:"If a transaction is not active for this duration, it will be rolled back. Valid time units are ns, us (or µs), ms, s, m, h"  default:"10s"`
+	MaxReadConns          int           `arg:"--max-read-conns,env:NSQLITE_MAX_READ_CONNS"                 help:"Maximum number of read-only database connections"                                                                            default:"10"`
+	CacheSizeKB           int           `arg:"--cache-size-kb,env:NSQLITE_CACHE_SIZE_KB"                   help:"SQLite cache size in KB per connection (negative is converted internally, just specify the positive KB value)"               default:"20000"`
+	BusyTimeout           time.Duration `arg:"--busy-timeout,env:NSQLITE_BUSY_TIMEOUT"                     help:"How long SQLite waits when the database is locked by another writer. Valid time units are ns, us (or µs), ms, s, m, h"       default:"5s"`
+	MaxRequestSizeMB      int           `arg:"--max-request-size-mb,env:NSQLITE_MAX_REQUEST_SIZE_MB"       help:"Maximum HTTP request body size in MB for the /query endpoint"                                                                default:"100"`
 }
 
 // Version returns the CLI version banner.
@@ -52,6 +57,18 @@ func (c Config) ToArgs() []string {
 	}
 	if c.ListenPort != "" {
 		args = append(args, "--listen-port", c.ListenPort)
+	}
+	if c.DisableCORS {
+		args = append(args, "--disable-cors")
+	}
+	if c.CORSAllowedOriginsRaw != "" {
+		args = append(args, "--cors-allowed-origins", c.CORSAllowedOriginsRaw)
+	}
+	if c.CORSAllowedHeadersRaw != "" {
+		args = append(args, "--cors-allowed-headers", c.CORSAllowedHeadersRaw)
+	}
+	if c.CORSAllowCredentials {
+		args = append(args, "--cors-allow-credentials")
 	}
 	if c.TxIdleTimeout != time.Duration(0) {
 		args = append(args, "--tx-idle-timeout", c.TxIdleTimeout.String())
@@ -110,6 +127,10 @@ func Parse(args []string) (Config, error) {
 		return Config{}, err
 	}
 
+	if err := validateCORS(cfg); err != nil {
+		return Config{}, err
+	}
+
 	return cfg, nil
 }
 
@@ -150,6 +171,16 @@ func (c Config) ReadOnlyAuthTokens() []string {
 	return splitAuthTokens(c.AuthTokenRO)
 }
 
+// CORSAllowedOrigins returns the configured CORS origins.
+func (c Config) CORSAllowedOrigins() []string {
+	return splitCommaSeparated(c.CORSAllowedOriginsRaw)
+}
+
+// CORSAllowedHeaders returns the configured CORS request headers.
+func (c Config) CORSAllowedHeaders() []string {
+	return splitCommaSeparated(c.CORSAllowedHeadersRaw)
+}
+
 // validateBusyTimeout validates that the busy timeout is greater than zero.
 func validateBusyTimeout(timeout time.Duration) error {
 	if timeout <= 0 {
@@ -172,10 +203,43 @@ func validateCacheSize(size int) error {
 	return nil
 }
 
+func validateCORS(cfg Config) error {
+	if cfg.DisableCORS {
+		return nil
+	}
+
+	allowedOrigins := cfg.CORSAllowedOrigins()
+	if len(allowedOrigins) == 0 {
+		return fmt.Errorf("cors allowed origins must contain at least one origin")
+	}
+
+	if cfg.CORSAllowCredentials && slices.Contains(allowedOrigins, "*") {
+		return fmt.Errorf("cors allowed origins cannot contain * when credentials are enabled")
+	}
+
+	return nil
+}
+
 // splitAuthTokens splits a token list on whitespace.
 func splitAuthTokens(value string) []string {
 	if value == "" {
 		return nil
 	}
 	return strings.Fields(value)
+}
+
+func splitCommaSeparated(value string) []string {
+	parts := strings.Split(value, ",")
+	values := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		values = append(values, trimmed)
+	}
+	if len(values) == 0 {
+		return nil
+	}
+	return values
 }

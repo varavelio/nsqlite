@@ -8,7 +8,9 @@ nav:
   - Getting Started: index.md
   - Reference:
       - Configuration: reference/config.md
-      - HTTP API: reference/api.md
+      - VDL Explorer: schema/explorer.html
+      - Swagger UI: schema/swagger.html
+      - OpenAPI Spec: schema/openapi.yaml
 
   - LLMs:
       - llms.txt ↗: llms.txt
@@ -77,4 +79,4 @@ plugins:
           - reference/*.md
 
 extra_javascript:
-  - assets/js/llms-link.js
+  - assets/js/external-links.js

@@ -1,10 +1,6 @@
 # NSQLite Configuration Reference
 
-All configuration is performed through **environment variables** or **CLI flags**. Both are equivalent — the CLI flag `--listen-port` can also be set via `NSQLITE_LISTEN_PORT`.
-
-> **Note on precedence:** CLI flags take precedence over environment variables when both are provided.
-
----
+All configuration is performed through **environment variables**.
 
 ## Table of Contents
 
@@ -12,8 +8,6 @@ All configuration is performed through **environment variables** or **CLI flags*
 - [Authentication](#authentication)
 - [SQLite Tuning](#sqlite-tuning)
 - [Litestream (Container Only)](#litestream-container-only)
-
----
 
 ## Server Configuration
 
@@ -25,8 +19,6 @@ All configuration is performed through **environment variables** or **CLI flags*
 | `NSQLITE_MAX_REQUEST_SIZE_MB` | `--max-request-size-mb` | Maximum HTTP request body size (in MB) for the `/query` endpoint. | `100`     |
 
 > **Validation:** `NSQLITE_LISTEN_HOST` must be a valid host address. `NSQLITE_LISTEN_PORT` must be within `1`–`65535`.
-
----
 
 ## Authentication
 
@@ -46,8 +38,6 @@ NSQLite supports three tiers of access control. Each variable accepts **one or m
 
 > **Performance note:** Tokens are resolved on first use and cached in memory via a SHA-256 derived key, so repeated authentication (including bcrypt/Argon2 verification) happens only once per unique token.
 
----
-
 ## SQLite Tuning
 
 | Environment Variable      | CLI Flag            | Description                                                                                                                                                                                                             | Default |
@@ -56,8 +46,6 @@ NSQLite supports three tiers of access control. Each variable accepts **one or m
 | `NSQLITE_MAX_READ_CONNS`  | `--max-read-conns`  | Maximum number of concurrent read-only SQLite connections. Higher values improve parallel read throughput but consume more memory.                                                                                      | `10`    |
 | `NSQLITE_CACHE_SIZE_KB`   | `--cache-size-kb`   | SQLite page cache size **per connection**, in kilobytes. Specify the positive KB value (it is converted internally to SQLite's negative page-count representation).                                                     | `20000` |
 | `NSQLITE_BUSY_TIMEOUT`    | `--busy-timeout`    | Amount of time SQLite waits for the database lock when another writer is active. Valid time units: `ns`, `us`/`µs`, `ms`, `s`, `m`, `h`. Must be greater than zero.                                                     | `5s`    |
-
----
 
 ## Litestream (Container Only)
 

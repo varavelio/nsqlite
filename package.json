@@ -5,7 +5,6 @@
     "-": "Run commands using the root's Taskfile.yml file"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.14",
     "dprint": "0.54.0"
   }
 }

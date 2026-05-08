@@ -1,0 +1,80 @@
+site_name: NSQLite
+site_description: SQLite over the network, with Litestream support.
+site_url: https://nsqlite.varavel.com
+repo_url: https://github.com/varavelio/nsqlite
+repo_name: varavelio/nsqlite
+
+nav:
+  - Getting Started: index.md
+  - Reference:
+      - Configuration: reference/config.md
+      - HTTP API: reference/api.md
+
+  - LLMs:
+      - llms.txt ↗: llms.txt
+      - llms-full.txt ↗: llms-full.txt
+
+theme:
+  name: material
+  logo: https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg
+  favicon: https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/ns.svg
+  features:
+    - search.suggest
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - content.code.copy
+    - content.code.annotate
+
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to automatic mode
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search
+  - llmstxt:
+      markdown_description: SQLite over the network, with Litestream support.
+      full_output: llms.txt
+      base_url: https://nsqlite.varavel.com
+      sections:
+        Documentation:
+          - docs/*.md
+
+extra_javascript:
+  - assets/js/llms-link.js

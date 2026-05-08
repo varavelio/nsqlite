@@ -330,8 +330,32 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 	if query.TxID != "" {
 		db.txOpMu.Lock()
 		defer db.txOpMu.Unlock()
+
+		return db.queryWithType(ctx, query)
 	}
 
+	queryType, err := db.ClassifyQuery(ctx, query.Query, query.TxID)
+	if err != nil {
+		if db.txID.Load() != "" {
+			db.txMu.Lock()
+			defer db.txMu.Unlock()
+
+			queryType, err = db.ClassifyQuery(ctx, query.Query, query.TxID)
+			if err == nil {
+				return db.executeClassifiedQuery(ctx, query, queryType)
+			}
+		}
+		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
+	}
+	if queryType == QueryTypeWrite {
+		db.txMu.Lock()
+		defer db.txMu.Unlock()
+	}
+
+	return db.executeClassifiedQuery(ctx, query, queryType)
+}
+
+func (db *DB) queryWithType(ctx context.Context, query Query) (QueryResult, error) {
 	if err := db.validateTxID(query.TxID); err != nil {
 		return QueryResult{}, err
 	}
@@ -344,6 +368,18 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 	if err != nil {
 		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
 	}
+	if query.ValidateReadOnly && queryType != QueryTypeRead {
+		return QueryResult{}, ErrReadOnly
+	}
+
+	return db.executeClassifiedQuery(ctx, query, queryType)
+}
+
+func (db *DB) executeClassifiedQuery(
+	ctx context.Context,
+	query Query,
+	queryType QueryType,
+) (QueryResult, error) {
 	if query.ValidateReadOnly && queryType != QueryTypeRead {
 		return QueryResult{}, ErrReadOnly
 	}

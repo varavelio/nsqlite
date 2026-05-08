@@ -5,6 +5,7 @@ All configuration is performed through **environment variables**.
 ## Table of Contents
 
 - [Server Configuration](#server-configuration)
+- [CORS](#cors)
 - [Authentication](#authentication)
 - [SQLite Tuning](#sqlite-tuning)
 - [Litestream (Container Only)](#litestream-container-only)
@@ -19,6 +20,25 @@ All configuration is performed through **environment variables**.
 | `NSQLITE_MAX_REQUEST_SIZE_MB` | `--max-request-size-mb` | Maximum HTTP request body size (in MB) for the `/query` endpoint. | `100`     |
 
 > **Validation:** `NSQLITE_LISTEN_HOST` must be a valid host address. `NSQLITE_LISTEN_PORT` must be within `1`–`65535`.
+
+## CORS
+
+NSQLite applies CORS headers at the HTTP server layer. The defaults are intentionally practical for browser-based API clients while remaining safe for credentialed traffic.
+
+| Environment Variable             | CLI Flag                   | Description                                                                          | Default                             |
+| -------------------------------- | -------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------- |
+| `NSQLITE_DISABLE_CORS`           | `--disable-cors`           | Disable CORS response headers and preflight handling entirely.                       | `false`                             |
+| `NSQLITE_CORS_ALLOWED_ORIGINS`   | `--cors-allowed-origins`   | Comma-separated list of allowed origins. Use `*` only when credentials are disabled. | `*`                                 |
+| `NSQLITE_CORS_ALLOWED_HEADERS`   | `--cors-allowed-headers`   | Comma-separated list of request headers allowed in successful preflight responses.   | `Accept,Authorization,Content-Type` |
+| `NSQLITE_CORS_ALLOW_CREDENTIALS` | `--cors-allow-credentials` | Allow credentials on cross-origin browser requests. Requires explicit origins.       | `false`                             |
+
+Behavior notes:
+
+- Allowed origins are matched exactly, unless `*` is configured.
+- Successful preflight responses always return `GET, HEAD, POST, OPTIONS` in `Access-Control-Allow-Methods`.
+- Preflight requests (`OPTIONS` with `Origin` and `Access-Control-Request-Method`) receive `204 No Content` when allowed.
+- Blocked preflight requests receive `403 Forbidden`.
+- NSQLite rejects `NSQLITE_CORS_ALLOWED_ORIGINS=*` when `NSQLITE_CORS_ALLOW_CREDENTIALS=true`.
 
 ## Authentication
 

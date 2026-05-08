@@ -89,23 +89,29 @@ services:
 
 The container always configures NSQLite through environment variables and it has sane default values.
 
-| Variable                      | Container default | Description                                                                                                                  |
-| ----------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| `NSQLITE_AUTH_TOKEN`          | unset             | Admin token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for full access.                            |
-| `NSQLITE_AUTH_TOKEN_RW`       | unset             | Read/write token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for query read/write access only.      |
-| `NSQLITE_AUTH_TOKEN_RO`       | unset             | Read-only token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for query read access only.             |
-| `NSQLITE_DATA_DIR`            | `/data`           | Directory used by NSQLite to store its SQLite files. The main database file is always `${NSQLITE_DATA_DIR}/database.sqlite`. |
-| `NSQLITE_LISTEN_HOST`         | `0.0.0.0`         | Host/interface NSQLite binds to inside the container.                                                                        |
-| `NSQLITE_LISTEN_PORT`         | `9876`            | TCP port used by the HTTP server.                                                                                            |
-| `NSQLITE_TX_IDLE_TIMEOUT`     | `10s`             | Maximum idle time for an open transaction before it is rolled back.                                                          |
-| `NSQLITE_MAX_READ_CONNS`      | `10`              | Maximum number of read-only SQLite connections.                                                                              |
-| `NSQLITE_CACHE_SIZE_KB`       | `20000`           | SQLite cache size in KB per connection.                                                                                      |
-| `NSQLITE_BUSY_TIMEOUT`        | `5s`              | How long SQLite waits when the database is locked by another writer.                                                         |
-| `NSQLITE_MAX_REQUEST_SIZE_MB` | `100`             | Maximum HTTP body size accepted by the `/query` endpoint.                                                                    |
+| Variable                         | Container default                   | Description                                                                                                                  |
+| -------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `NSQLITE_AUTH_TOKEN`             | unset                               | Admin token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for full access.                            |
+| `NSQLITE_AUTH_TOKEN_RW`          | unset                               | Read/write token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for query read/write access only.      |
+| `NSQLITE_AUTH_TOKEN_RO`          | unset                               | Read-only token list. Use space-separated plaintext tokens or bcrypt/argon2id hashes for query read access only.             |
+| `NSQLITE_DATA_DIR`               | `/data`                             | Directory used by NSQLite to store its SQLite files. The main database file is always `${NSQLITE_DATA_DIR}/database.sqlite`. |
+| `NSQLITE_LISTEN_HOST`            | `0.0.0.0`                           | Host/interface NSQLite binds to inside the container.                                                                        |
+| `NSQLITE_LISTEN_PORT`            | `9876`                              | TCP port used by the HTTP server.                                                                                            |
+| `NSQLITE_DISABLE_CORS`           | `false`                             | Disables CORS response headers and preflight handling.                                                                       |
+| `NSQLITE_CORS_ALLOWED_ORIGINS`   | `*`                                 | Comma-separated CORS origin allowlist. Use explicit origins when credentials are enabled.                                    |
+| `NSQLITE_CORS_ALLOWED_HEADERS`   | `Accept,Authorization,Content-Type` | Comma-separated CORS request headers allowed during preflight handling.                                                      |
+| `NSQLITE_CORS_ALLOW_CREDENTIALS` | `false`                             | Allows credentialed browser requests when origins are explicitly listed.                                                     |
+| `NSQLITE_TX_IDLE_TIMEOUT`        | `10s`                               | Maximum idle time for an open transaction before it is rolled back.                                                          |
+| `NSQLITE_MAX_READ_CONNS`         | `10`                                | Maximum number of read-only SQLite connections.                                                                              |
+| `NSQLITE_CACHE_SIZE_KB`          | `20000`                             | SQLite cache size in KB per connection.                                                                                      |
+| `NSQLITE_BUSY_TIMEOUT`           | `5s`                                | How long SQLite waits when the database is locked by another writer.                                                         |
+| `NSQLITE_MAX_REQUEST_SIZE_MB`    | `100`                               | Maximum HTTP body size accepted by the `/query` endpoint.                                                                    |
 
 > **⚠️ Important: Auth tokens security**
 >
 > Always prefer using token hashes over plaintext tokens. The recommended algorithm is **Argon2ID**, followed by **Bcrypt** as a secondary option. Plaintext tokens are discouraged, as they can be exposed if environment variables or the container are compromised.
+
+> **CORS note:** `NSQLITE_CORS_ALLOW_CREDENTIALS=true` requires explicit origins. NSQLite intentionally rejects `NSQLITE_CORS_ALLOWED_ORIGINS=*` in that mode.
 
 ## Litestream Configuration
 

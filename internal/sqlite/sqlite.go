@@ -27,7 +27,26 @@ func getResCodeStr(resCode C.int) string {
 //
 // https://www.sqlite.org/c3ref/sqlite3.html
 type Conn struct {
-	cDB *C.sqlite3
+	cDB           *C.sqlite3
+	authorizerCtx *C.cust_authorizer_ctx
+}
+
+// AuthorizerRole defines the authorization policy enforced while SQLite prepares a statement.
+type AuthorizerRole int
+
+const (
+	AuthorizerRoleAdmin AuthorizerRole = iota
+	AuthorizerRoleReadWrite
+	AuthorizerRoleReadOnly
+)
+
+func (role AuthorizerRole) isValid() bool {
+	switch role {
+	case AuthorizerRoleAdmin, AuthorizerRoleReadWrite, AuthorizerRoleReadOnly:
+		return true
+	default:
+		return false
+	}
 }
 
 // Stmt represents a prepared statement in SQLite.
@@ -61,7 +80,25 @@ func Open(filePath string) (*Conn, error) {
 		return nil, fmt.Errorf("failed to open database: %s: %w", getResCodeStr(resCode), errMsg)
 	}
 
-	return &Conn{cDB: db}, nil
+	conn := &Conn{cDB: db}
+	authorizerCtx := C.cust_authorizer_ctx_new()
+	if authorizerCtx == nil {
+		_ = C.sqlite3_close(db)
+		return nil, errors.New("failed to allocate SQLite authorizer context")
+	}
+	if resCode = C.cust_sqlite3_set_authorizer(db, authorizerCtx); resCode != C.SQLITE_OK {
+		C.cust_authorizer_ctx_free(authorizerCtx)
+		errMsg := conn.getLastError()
+		_ = C.sqlite3_close(db)
+		return nil, fmt.Errorf(
+			"failed to register SQLite authorizer: %s: %w",
+			getResCodeStr(resCode),
+			errMsg,
+		)
+	}
+	conn.authorizerCtx = authorizerCtx
+
+	return conn, nil
 }
 
 // Close finalizes the connection to the SQLite database.
@@ -83,7 +120,31 @@ func (conn *Conn) Close() error {
 			conn.getLastError(),
 		)
 	}
+	if conn.authorizerCtx != nil {
+		C.cust_authorizer_ctx_free(conn.authorizerCtx)
+		conn.authorizerCtx = nil
+	}
 	conn.cDB = nil
+
+	return nil
+}
+
+// SetAuthorizerRole updates the active authorizer role for this connection.
+func (conn *Conn) SetAuthorizerRole(role AuthorizerRole) error {
+	if conn.cDB == nil {
+		return errors.New("failed to set authorizer role: database connection is nil")
+	}
+	if conn.authorizerCtx == nil {
+		return errors.New("failed to set authorizer role: authorizer context is nil")
+	}
+	if !role.isValid() {
+		return fmt.Errorf("failed to set authorizer role: invalid role %d", role)
+	}
+
+	resCode := C.cust_authorizer_ctx_set_role(conn.authorizerCtx, C.int(role))
+	if resCode != C.SQLITE_OK {
+		return fmt.Errorf("failed to set authorizer role: %s", getResCodeStr(resCode))
+	}
 
 	return nil
 }

@@ -98,6 +98,11 @@ func (conn *Conn) RawConn() *sqlite.Conn {
 	return conn.conn
 }
 
+// SetAuthorizerRole updates the active SQLite authorizer role on this connection.
+func (conn *Conn) SetAuthorizerRole(role sqlite.AuthorizerRole) error {
+	return conn.conn.SetAuthorizerRole(role)
+}
+
 // Close closes the connection to the SQLite database.
 func (conn *Conn) Close() error {
 	if err := conn.conn.Close(); err != nil {

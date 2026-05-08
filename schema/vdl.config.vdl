@@ -1,0 +1,34 @@
+/*************************************************************\
+* VDL Configuration File                                      *
+*                                                             *
+* Star the repo at https://github.com/varavelio/vdl           *
+* See all available options at https://vdl.varavel.com/config *
+*                                                             *
+* Tweak this file and run "vdl generate"                      *
+\*************************************************************/
+
+const config = {
+  version 1
+
+  plugins [
+    {
+      src "varavelio/vdl-plugin-go@v0.1.3"
+      schema "./index.vdl"
+      outDir "../internal/vdl"
+      options {
+        package "vdl"
+        jsonPackage "github.com/goccy/go-json"
+      }
+    }
+    {
+      src "varavelio/vdl-plugin-rpc-go@v0.1.1"
+      schema "./index.vdl"
+      outDir "../internal/vdl"
+      options {
+        package "vdl"
+        target "server"
+        jsonPackage "github.com/goccy/go-json"
+      }
+    }
+  ]
+}

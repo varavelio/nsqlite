@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -20,11 +21,19 @@ import (
 
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/require"
+	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
 const serverReadyTimeout = 10 * time.Second
 
 const maxServerStartAttempts = 5
+
+const (
+	DatabaseQueryPath = "/rpc/Database/query"
+	SystemHealthPath  = "/rpc/System/health"
+	SystemSessionPath = "/rpc/System/session"
+	SystemStatusPath  = "/rpc/System/status"
+)
 
 // ServerConfig defines the NSQLite process configuration for one E2E test.
 type ServerConfig struct {
@@ -197,7 +206,7 @@ func (s *Server) PostJSON(t testing.TB, path string, body any, token string) HTT
 func (s *Server) Query(t testing.TB, token string, queries ...Query) QueryResponse {
 	t.Helper()
 
-	response := s.PostJSON(t, "/query", queries, token)
+	response := s.QueryResponse(t, token, queries...)
 	require.Equal(
 		t,
 		http.StatusOK,
@@ -206,14 +215,14 @@ func (s *Server) Query(t testing.TB, token string, queries ...Query) QueryRespon
 		string(response.Body),
 	)
 
-	return DecodeJSON[QueryResponse](t, response).WithoutTiming()
+	return DecodeQueryResponse(t, response).WithoutTiming()
 }
 
 // Stats fetches `/stats` and decodes the successful response.
 func (s *Server) Stats(t testing.TB, token string) LoadedStats {
 	t.Helper()
 
-	response := s.Get(t, "/stats", token)
+	response := s.StatusResponse(t, token)
 	require.Equal(
 		t,
 		http.StatusOK,
@@ -222,7 +231,75 @@ func (s *Server) Stats(t testing.TB, token string) LoadedStats {
 		string(response.Body),
 	)
 
-	return DecodeJSON[LoadedStats](t, response)
+	rpcResponse := DecodeJSON[RPCResponse[vdl.SystemStatusOutput]](t, response)
+	require.True(t, rpcResponse.OK, "unexpected RPC error: %s", string(response.Body))
+
+	return loadedStatsFromVDL(rpcResponse.Output.Stats)
+}
+
+// Version fetches `/rpc/System/status` and returns the reported version.
+func (s *Server) Version(t testing.TB, token string) string {
+	t.Helper()
+
+	response := s.StatusResponse(t, token)
+	require.Equal(
+		t,
+		http.StatusOK,
+		response.StatusCode,
+		"unexpected response body: %s",
+		string(response.Body),
+	)
+
+	rpcResponse := DecodeJSON[RPCResponse[vdl.SystemStatusOutput]](t, response)
+	require.True(t, rpcResponse.OK, "unexpected RPC error: %s", string(response.Body))
+
+	return rpcResponse.Output.Version
+}
+
+// SessionRole fetches `/rpc/System/session` and returns the authenticated role.
+func (s *Server) SessionRole(t testing.TB, token string) string {
+	t.Helper()
+
+	response := s.SessionResponse(t, token)
+	require.Equal(
+		t,
+		http.StatusOK,
+		response.StatusCode,
+		"unexpected response body: %s",
+		string(response.Body),
+	)
+
+	rpcResponse := DecodeJSON[RPCResponse[vdl.SystemSessionOutput]](t, response)
+	require.True(t, rpcResponse.OK, "unexpected RPC error: %s", string(response.Body))
+
+	return string(rpcResponse.Output.Role)
+}
+
+// QueryResponse sends one or more queries to the Database.query RPC and returns the raw HTTP response.
+func (s *Server) QueryResponse(t testing.TB, token string, queries ...Query) HTTPResponse {
+	t.Helper()
+
+	return s.PostJSON(t, DatabaseQueryPath, map[string]any{
+		"queries": toRPCQueries(queries),
+	}, token)
+}
+
+// HealthResponse calls the System.health RPC and returns the raw HTTP response.
+func (s *Server) HealthResponse(t testing.TB, token string) HTTPResponse {
+	t.Helper()
+	return s.PostJSON(t, SystemHealthPath, map[string]any{}, token)
+}
+
+// SessionResponse calls the System.session RPC and returns the raw HTTP response.
+func (s *Server) SessionResponse(t testing.TB, token string) HTTPResponse {
+	t.Helper()
+	return s.PostJSON(t, SystemSessionPath, map[string]any{}, token)
+}
+
+// StatusResponse calls the System.status RPC and returns the raw HTTP response.
+func (s *Server) StatusResponse(t testing.TB, token string) HTTPResponse {
+	t.Helper()
+	return s.PostJSON(t, SystemStatusPath, map[string]any{}, token)
 }
 
 func (s *Server) waitUntilReady() error {
@@ -240,15 +317,17 @@ func (s *Server) waitUntilReady() error {
 		default:
 		}
 
+		body := bytes.NewReader([]byte(`{}`))
 		req, err := http.NewRequestWithContext(
 			context.Background(),
-			http.MethodGet,
-			s.baseURL+"/health",
-			nil,
+			http.MethodPost,
+			s.baseURL+SystemHealthPath,
+			body,
 		)
 		if err != nil {
 			return fmt.Errorf("build readiness request: %w", err)
 		}
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := s.client.Do(req)
 		if err == nil {
@@ -293,6 +372,202 @@ func (s *Server) do(t testing.TB, method, path string, body io.Reader, token str
 		Headers:    resp.Header.Clone(),
 		Body:       respBody,
 	}
+}
+
+func toRPCQueries(queries []Query) []map[string]any {
+	rpcQueries := make([]map[string]any, 0, len(queries))
+	for _, query := range queries {
+		rpcQuery := map[string]any{
+			"query": query.Query,
+		}
+		if query.TxID != "" {
+			rpcQuery["txId"] = query.TxID
+		}
+		if len(query.Params) > 0 {
+			rpcParams := make([]map[string]any, 0, len(query.Params))
+			for _, param := range query.Params {
+				rpcParam := map[string]any{
+					"value": toRPCValue(param.Value),
+				}
+				if param.Name != "" {
+					rpcParam["name"] = param.Name
+				}
+				rpcParams = append(rpcParams, rpcParam)
+			}
+			rpcQuery["params"] = rpcParams
+		}
+		rpcQueries = append(rpcQueries, rpcQuery)
+	}
+	return rpcQueries
+}
+
+func toRPCValue(value any) map[string]any {
+	switch v := value.(type) {
+	case nil:
+		return map[string]any{"null": true}
+	case bool:
+		if v {
+			return map[string]any{"integer": 1}
+		}
+		return map[string]any{"integer": 0}
+	case int:
+		return map[string]any{"integer": v}
+	case int8:
+		return map[string]any{"integer": v}
+	case int16:
+		return map[string]any{"integer": v}
+	case int32:
+		return map[string]any{"integer": v}
+	case int64:
+		return map[string]any{"integer": v}
+	case uint:
+		return map[string]any{"integer": v}
+	case uint8:
+		return map[string]any{"integer": v}
+	case uint16:
+		return map[string]any{"integer": v}
+	case uint32:
+		return map[string]any{"integer": v}
+	case uint64:
+		return map[string]any{"integer": v}
+	case float32:
+		return map[string]any{"real": v}
+	case float64:
+		return map[string]any{"real": v}
+	case string:
+		return map[string]any{"text": v}
+	default:
+		return map[string]any{"unsupported": v}
+	}
+}
+
+func queryResponseFromVDL(output vdl.DatabaseQueryOutput) QueryResponse {
+	response := QueryResponse{
+		Time:    output.Time,
+		Results: make([]QueryResult, 0, len(output.Results)),
+	}
+	for _, result := range output.Results {
+		response.Results = append(response.Results, queryResultFromVDL(result))
+	}
+	return response
+}
+
+// DecodeQueryResponse decodes a successful Database.query RPC response into the legacy test shape.
+func DecodeQueryResponse(t testing.TB, response HTTPResponse) QueryResponse {
+	t.Helper()
+
+	decoded, err := DecodeQueryResponseBody(response.Body)
+	require.NoError(t, err, "unexpected response body: %s", string(response.Body))
+
+	return decoded
+}
+
+// DecodeQueryResponseBody decodes a successful Database.query RPC response body into the legacy test shape.
+func DecodeQueryResponseBody(body []byte) (QueryResponse, error) {
+	var rpcResponse RPCResponse[vdl.DatabaseQueryOutput]
+	if err := json.Unmarshal(body, &rpcResponse); err != nil {
+		return QueryResponse{}, err
+	}
+	if !rpcResponse.OK {
+		return QueryResponse{}, fmt.Errorf("rpc error: %s", rpcResponse.Error.Message)
+	}
+
+	return queryResponseFromVDL(rpcResponse.Output), nil
+}
+
+func queryResultFromVDL(result vdl.QueryResult) QueryResult {
+	converted := QueryResult{
+		Type: string(result.Type),
+		Time: result.Time,
+	}
+	if result.Error != nil {
+		converted.Error = *result.Error
+	}
+	if result.TxId != nil {
+		converted.TxID = *result.TxId
+	}
+	if result.LastInsertId != nil {
+		converted.LastInsertID = *result.LastInsertId
+	}
+	if result.RowsAffected != nil {
+		converted.RowsAffected = *result.RowsAffected
+	}
+	if result.Columns != nil {
+		converted.Columns = append([]string(nil), (*result.Columns)...)
+	}
+	if result.Types != nil {
+		converted.Types = make([]string, 0, len(*result.Types))
+		for _, typ := range *result.Types {
+			converted.Types = append(converted.Types, string(typ))
+		}
+	}
+	if result.Rows != nil {
+		converted.Rows = make([][]any, 0, len(*result.Rows))
+		for _, row := range *result.Rows {
+			convertedRow := make([]any, 0, len(row))
+			for _, value := range row {
+				convertedRow = append(convertedRow, sqliteValueToAny(value))
+			}
+			converted.Rows = append(converted.Rows, convertedRow)
+		}
+	}
+	return converted
+}
+
+func sqliteValueToAny(value vdl.SqliteValue) any {
+	if value.Null != nil && *value.Null {
+		return nil
+	}
+	if value.Integer != nil {
+		return float64(*value.Integer)
+	}
+	if value.Real != nil {
+		return *value.Real
+	}
+	if value.Text != nil {
+		return *value.Text
+	}
+	if value.Blob != nil {
+		return *value.Blob
+	}
+	return nil
+}
+
+func loadedStatsFromVDL(stats vdl.Stats) LoadedStats {
+	loaded := LoadedStats{
+		StartedAt: stats.StartedAt.Format(time.RFC3339),
+		Uptime: (time.Duration(stats.UptimeSeconds * float64(time.Second))).Round(time.Second).
+			String(),
+		QueuedBegins:       stats.Queued.Begins,
+		QueuedWrites:       stats.Queued.Writes,
+		QueuedHTTPRequests: stats.Queued.HttpRequests,
+		Totals: Totals{
+			Reads:        stats.Totals.Reads,
+			Writes:       stats.Totals.Writes,
+			Begins:       stats.Totals.Begins,
+			Commits:      stats.Totals.Commits,
+			Rollbacks:    stats.Totals.Rollbacks,
+			Errors:       stats.Totals.Errors,
+			HTTPRequests: stats.Totals.HttpRequests,
+		},
+		Stats: make([]Stat, 0, len(stats.Minutes)),
+	}
+	for minute, totals := range stats.Minutes {
+		loaded.Stats = append(loaded.Stats, Stat{
+			Minute:       minute,
+			Reads:        totals.Reads,
+			Writes:       totals.Writes,
+			Begins:       totals.Begins,
+			Commits:      totals.Commits,
+			Rollbacks:    totals.Rollbacks,
+			Errors:       totals.Errors,
+			HTTPRequests: totals.HttpRequests,
+		})
+	}
+	sort.Slice(loaded.Stats, func(i, j int) bool {
+		return loaded.Stats[j].Minute < loaded.Stats[i].Minute
+	})
+	return loaded
 }
 
 // HTTPResponse stores the raw HTTP response returned by the server.

@@ -1,5 +1,20 @@
 package harness
 
+// RPCError matches one VDL RPC error payload.
+type RPCError struct {
+	Message  string         `json:"message"`
+	Category string         `json:"category,omitempty"`
+	Code     string         `json:"code,omitempty"`
+	Details  map[string]any `json:"details,omitempty"`
+}
+
+// RPCResponse matches the VDL RPC response envelope.
+type RPCResponse[T any] struct {
+	OK     bool     `json:"ok"`
+	Output T        `json:"output"`
+	Error  RPCError `json:"error"`
+}
+
 // Query matches the public `/query` request payload.
 type Query struct {
 	TxID   string       `json:"txId,omitempty"`

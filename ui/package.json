@@ -1,0 +1,18 @@
+{
+  "name": "nsqliteui",
+  "type": "module",
+  "scripts": {
+    "-": "Run commands using the root's Taskfile.yml file"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "3.0.10",
+    "@sveltejs/kit": "2.59.1",
+    "@sveltejs/vite-plugin-svelte": "7.1.2",
+    "@tailwindcss/vite": "4.2.4",
+    "svelte": "5.55.5",
+    "svelte-check": "4.4.8",
+    "tailwindcss": "4.2.4",
+    "typescript": "6.0.3",
+    "vite": "8.0.11"
+  }
+}

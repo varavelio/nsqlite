@@ -40,7 +40,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          OUTPUT=$(npx wrangler pages deploy ./build \
+          OUTPUT=$(npx wrangler pages deploy ./site \
             --project-name=varavel-nsqlite \
             --branch="${{ github.ref_name }}" \
             --commit-hash="${{ github.sha }}" \

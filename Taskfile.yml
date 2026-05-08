@@ -43,12 +43,11 @@ tasks:
     desc: Build the binary for the current platform
     deps:
       - codegen
-    cmds:
-      - mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
+    cmd: mkdir -p ./dist && CGO_ENABLED=1 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/nsqlite ./cmd/nsqlite
 
   build:entrypoint:
     desc: Build the container entrypoint binary for the current platform
-    cmd: mkdir -p ./dist && CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./dist/entrypoint ./cmd/entrypoint
+    cmd: mkdir -p ./dist && CGO_ENABLED=0 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/entrypoint ./cmd/entrypoint
 
   run:
     desc: Run the project (blocking)

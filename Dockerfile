@@ -3,30 +3,38 @@ FROM alpine:3.23.3 AS fetcher
 
 ARG TASK_VERSION=3.50.0
 ARG LITESTREAM_VERSION=0.5.11
+ARG VDL_VERSION=v0.5.0-alpha.5
 
 WORKDIR /fetcher
 
 # Keep all downloaded tools in /fetcher and verify Litestream before copying it forward.
 RUN apk add --quiet --no-cache ca-certificates curl tar && \
   update-ca-certificates && \
+  # Fetch litestream
   case "$(apk --print-arch)" in \
     x86_64) litestream_arch="x86_64" ;; \
     aarch64) litestream_arch="arm64" ;; \
     *) echo "unsupported Alpine architecture: $(apk --print-arch)" >&2; exit 1 ;; \
   esac && \
-  sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /fetcher "v${TASK_VERSION}" && \
-  chmod 0755 /fetcher/task && \
   asset="litestream-${LITESTREAM_VERSION}-linux-${litestream_arch}.tar.gz" && \
   curl -fsSLO "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/${asset}" && \
   curl -fsSLO "https://github.com/benbjohnson/litestream/releases/download/v${LITESTREAM_VERSION}/checksums.txt" && \
   grep " ${asset}$" checksums.txt | sha256sum -c - && \
   tar -xzf "${asset}" && \
-  chmod 0755 /fetcher/litestream
+  chmod 0755 /fetcher/litestream && \
+  # Fetch task
+  sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /fetcher "v${TASK_VERSION}" && \
+  chmod 0755 /fetcher/task && \
+  # Fetch VDL
+  curl -fsSL https://get.varavel.com/vdl | VERSION=${VDL_VERSION} INSTALL_DIR=/fetcher QUIET=true sh && \
+  chmod +x /fetcher/vdl
 
 # Build NSQLite with the repository Taskfile, which owns version metadata and flags.
 FROM golang:1.26-trixie AS builder
 
+COPY --from=node:24.15.0-trixie /usr/local/ /usr/local/
 COPY --from=fetcher /fetcher/task /usr/local/bin/task
+COPY --from=fetcher /fetcher/vdl /usr/local/bin/vdl
 
 WORKDIR /src
 

@@ -44,7 +44,7 @@ func (db *DBStats) Close() {
 
 // runCleanupWorker removes stats older than 24 hours every 10 seconds.
 func (db *DBStats) runCleanupWorker() {
-	ticker := time.NewTicker(10 * time.Second)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
 	for {

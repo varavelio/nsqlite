@@ -18,14 +18,14 @@ func TestReadOnlyBatchReturnsSQLiteErrorAndContinuesWithSafeQueries(t *testing.T
 
 	before := server.Stats(t, "admin-token")
 
-	response := server.PostJSON(t, "/query", []harness.Query{
-		{Query: "SELECT 1;"},
-		{Query: "CREATE TABLE blocked (id INTEGER PRIMARY KEY);"},
-		{Query: "SELECT 2;"},
-	}, "read-only-token")
+	response := server.QueryResponse(t, "read-only-token",
+		harness.Query{Query: "SELECT 1;"},
+		harness.Query{Query: "CREATE TABLE blocked (id INTEGER PRIMARY KEY);"},
+		harness.Query{Query: "SELECT 2;"},
+	)
 	require.Equal(t, http.StatusOK, response.StatusCode)
 
-	queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+	queryResponse := harness.DecodeQueryResponse(t, response).WithoutTiming()
 	require.Len(t, queryResponse.Results, 3)
 	require.Equal(t, "read", queryResponse.Results[0].Type)
 	require.Equal(t, [][]any{{float64(1)}}, queryResponse.Results[0].Rows)

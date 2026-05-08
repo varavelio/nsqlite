@@ -15,7 +15,7 @@ func TestQueryEndpointRejectsRequestsWithoutATokenWhenAuthIsConfigured(t *testin
 		AuthToken: "admin-token",
 	})
 
-	response := server.PostJSON(t, "/query", []harness.Query{{Query: "SELECT 1;"}}, "")
+	response := server.QueryResponse(t, "", harness.Query{Query: "SELECT 1;"})
 
 	require.Equal(t, http.StatusUnauthorized, response.StatusCode)
 	apiError := harness.DecodeJSON[harness.APIError](t, response)
@@ -46,15 +46,14 @@ func TestReadOnlyTokenCanReadButCannotWrite(t *testing.T) {
 		}},
 	}, readResponse)
 
-	writeResponse := server.PostJSON(
+	writeResponse := server.QueryResponse(
 		t,
-		"/query",
-		[]harness.Query{{Query: "INSERT INTO allowed (name) VALUES ('blocked');"}},
 		"read-only-token",
+		harness.Query{Query: "INSERT INTO allowed (name) VALUES ('blocked');"},
 	)
 	require.Equal(t, http.StatusOK, writeResponse.StatusCode)
 
-	blockedWrite := harness.DecodeJSON[harness.QueryResponse](t, writeResponse).WithoutTiming()
+	blockedWrite := harness.DecodeQueryResponse(t, writeResponse).WithoutTiming()
 	require.Equal(t, "error", blockedWrite.Results[0].Type)
 	require.Contains(t, blockedWrite.Results[0].Error, "23: authorization denied")
 
@@ -91,11 +90,11 @@ func TestReadOnlyAuthorizationUsesSQLiteClassificationForCTEs(t *testing.T) {
 		}},
 	}, readOnlyCTE)
 
-	blockedCTEWrite := server.PostJSON(t, "/query", []harness.Query{{
+	blockedCTEWrite := server.QueryResponse(t, "read-only-token", harness.Query{
 		Query: "WITH value(id) AS (VALUES (1)) INSERT INTO cte_auth (id) SELECT id FROM value;",
-	}}, "read-only-token")
+	})
 	require.Equal(t, http.StatusOK, blockedCTEWrite.StatusCode)
-	blockedCTE := harness.DecodeJSON[harness.QueryResponse](t, blockedCTEWrite).WithoutTiming()
+	blockedCTE := harness.DecodeQueryResponse(t, blockedCTEWrite).WithoutTiming()
 	require.Equal(t, "error", blockedCTE.Results[0].Type)
 	require.Contains(t, blockedCTE.Results[0].Error, "23: authorization denied")
 

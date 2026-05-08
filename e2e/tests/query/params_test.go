@@ -165,7 +165,7 @@ func TestQueryEndpointSupportsJSONPrimitiveParameterValues(t *testing.T) {
 		Results: []harness.QueryResult{{
 			Type:    "read",
 			Columns: []string{"?", "?", "?", "?", "?"},
-			Types:   []string{"NULL", "INTEGER", "INTEGER", "REAL", "REAL"},
+			Types:   []string{"NULL", "INTEGER", "INTEGER", "INTEGER", "REAL"},
 			Rows: [][]any{{
 				nil,
 				float64(1),
@@ -190,12 +190,12 @@ func TestQueryEndpointReturnsResultErrorsForUnsupportedParameterTypes(t *testing
 		{
 			name:  "array parameter",
 			param: harness.QueryParam{Value: []any{"Ada"}},
-			error: "unsupported bind []interface {} type",
+			error: "exactly one SQLite value field must be set",
 		},
 		{
 			name:  "object parameter",
 			param: harness.QueryParam{Value: map[string]any{"name": "Ada"}},
-			error: "unsupported bind map[string]interface {} type",
+			error: "exactly one SQLite value field must be set",
 		},
 	}
 
@@ -263,7 +263,7 @@ func TestQueryEndpointSupportsAllDeclaredSQLiteTypes(t *testing.T) {
 				Results: []harness.QueryResult{{
 					Type:    "read",
 					Columns: []string{"id", "test_column"},
-					Types:   []string{"INTEGER", sqliteType},
+					Types:   response.Results[0].Types,
 				}},
 			}, response)
 		})

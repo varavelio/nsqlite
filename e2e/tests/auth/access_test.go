@@ -13,9 +13,9 @@ func TestOpenServerAllowsAdminEndpointsAndWritesWithoutTokens(t *testing.T) {
 
 	server := harness.StartServer(t, harness.ServerConfig{})
 
-	versionResponse := server.Get(t, "/version", "")
-	require.Equal(t, http.StatusOK, versionResponse.StatusCode)
-	require.Equal(t, "0.0.0-dev", string(versionResponse.Body))
+	statusResponse := server.StatusResponse(t, "")
+	require.Equal(t, http.StatusOK, statusResponse.StatusCode)
+	require.Equal(t, "0.0.0-dev", server.Version(t, ""))
 
 	stats := server.Stats(t, "")
 	require.GreaterOrEqual(t, stats.Totals.Reads, int64(1))
@@ -78,18 +78,16 @@ func TestAdminOnlyEndpointsRejectReadWriteAndReadOnlyTokens(t *testing.T) {
 		AuthTokenRO: "ro-token",
 	})
 
-	for _, endpoint := range []string{"/stats", "/version"} {
-		for _, token := range []string{"rw-token", "ro-token"} {
-			t.Run(endpoint+" "+token, func(t *testing.T) {
-				response := server.Get(t, endpoint, token)
-				require.Equal(t, http.StatusForbidden, response.StatusCode)
+	for _, token := range []string{"rw-token", "ro-token"} {
+		t.Run(token, func(t *testing.T) {
+			response := server.StatusResponse(t, token)
+			require.Equal(t, http.StatusForbidden, response.StatusCode)
 
-				apiError := harness.DecodeJSON[harness.APIError](t, response)
-				require.Equal(t, "Forbidden", apiError.Error)
-				require.Equal(t, "Forbidden", apiError.Message)
-				require.NotEmpty(t, apiError.ID)
-			})
-		}
+			apiError := harness.DecodeJSON[harness.APIError](t, response)
+			require.Equal(t, "Forbidden", apiError.Error)
+			require.Equal(t, "Forbidden", apiError.Message)
+			require.NotEmpty(t, apiError.ID)
+		})
 	}
 }
 

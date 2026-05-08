@@ -96,10 +96,17 @@ func waitForHealth(
 		default:
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, baseURL+"/health", nil)
+		body := bytes.NewReader([]byte(`{}`))
+		req, err := http.NewRequestWithContext(
+			ctx,
+			http.MethodPost,
+			baseURL+harness.SystemHealthPath,
+			body,
+		)
 		if err != nil {
 			return false, err
 		}
+		req.Header.Set("Content-Type", "application/json")
 
 		resp, err := client.Do(req)
 		if err == nil {

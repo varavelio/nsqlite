@@ -84,12 +84,12 @@ func TestReadOnlyTokenCannotEscalateThroughTransactions(t *testing.T) {
 
 	beginResponse := server.PostJSON(
 		t,
-		"/query",
-		[]harness.Query{{Query: "BEGIN;"}},
+		harness.DatabaseQueryPath,
+		map[string]any{"queries": []harness.Query{{Query: "BEGIN;"}}},
 		"read-only-token",
 	)
 	require.Equal(t, http.StatusOK, beginResponse.StatusCode)
-	beginResult := harness.DecodeJSON[harness.QueryResponse](t, beginResponse).WithoutTiming()
+	beginResult := harness.DecodeQueryResponse(t, beginResponse).WithoutTiming()
 	require.Equal(t, "error", beginResult.Results[0].Type)
 	require.Contains(t, beginResult.Results[0].Error, "23: authorization denied")
 
@@ -97,12 +97,14 @@ func TestReadOnlyTokenCannotEscalateThroughTransactions(t *testing.T) {
 	txID := adminBegin.Results[0].TxID
 	require.NotEmpty(t, txID)
 
-	roInsertResponse := server.PostJSON(t, "/query", []harness.Query{{
-		TxID:  txID,
-		Query: "INSERT INTO readonly_guard (name) VALUES ('blocked');",
-	}}, "read-only-token")
+	roInsertResponse := server.PostJSON(t, harness.DatabaseQueryPath, map[string]any{
+		"queries": []harness.Query{{
+			TxID:  txID,
+			Query: "INSERT INTO readonly_guard (name) VALUES ('blocked');",
+		}},
+	}, "read-only-token")
 	require.Equal(t, http.StatusOK, roInsertResponse.StatusCode)
-	roInsert := harness.DecodeJSON[harness.QueryResponse](t, roInsertResponse).WithoutTiming()
+	roInsert := harness.DecodeQueryResponse(t, roInsertResponse).WithoutTiming()
 	require.Equal(t, "error", roInsert.Results[0].Type)
 	require.Equal(
 		t,
@@ -180,12 +182,14 @@ func TestTransactionTxIDCannotBeUsedByAnotherPrincipal(t *testing.T) {
 	})
 	require.Equal(t, "write", insert.Results[0].Type)
 
-	hijackResponse := server.PostJSON(t, "/query", []harness.Query{{
-		TxID:  txID,
-		Query: "SELECT id, name FROM tx_owner_guard;",
-	}}, "rw-token-b")
+	hijackResponse := server.PostJSON(t, harness.DatabaseQueryPath, map[string]any{
+		"queries": []harness.Query{{
+			TxID:  txID,
+			Query: "SELECT id, name FROM tx_owner_guard;",
+		}},
+	}, "rw-token-b")
 	require.Equal(t, http.StatusOK, hijackResponse.StatusCode)
-	hijack := harness.DecodeJSON[harness.QueryResponse](t, hijackResponse).WithoutTiming()
+	hijack := harness.DecodeQueryResponse(t, hijackResponse).WithoutTiming()
 	require.Equal(t, "error", hijack.Results[0].Type)
 	require.Equal(
 		t,
@@ -427,13 +431,18 @@ func TestAuthorizerBatchMixedOperations(t *testing.T) {
 	})
 
 	t.Run("ro batch allowed functions plus blocked dml", func(t *testing.T) {
-		roResp := server.PostJSON(t, "/query", []harness.Query{
-			{Query: "SELECT COALESCE(NULL, 'safe')"},
-			{Query: "INSERT INTO batch_mixed (name) VALUES ('blocked')"},
-			{Query: "SELECT JSON_VALID('{}')"},
-		}, "read-only-token")
+		roResp := server.PostJSON(
+			t,
+			harness.DatabaseQueryPath,
+			map[string]any{"queries": []harness.Query{
+				{Query: "SELECT COALESCE(NULL, 'safe')"},
+				{Query: "INSERT INTO batch_mixed (name) VALUES ('blocked')"},
+				{Query: "SELECT JSON_VALID('{}')"},
+			}},
+			"read-only-token",
+		)
 		require.Equal(t, http.StatusOK, roResp.StatusCode)
-		resp := harness.DecodeJSON[harness.QueryResponse](t, roResp).WithoutTiming()
+		resp := harness.DecodeQueryResponse(t, roResp).WithoutTiming()
 		require.Len(t, resp.Results, 3)
 		require.Equal(t, "read", resp.Results[0].Type)
 		require.Equal(t, "error", resp.Results[1].Type)

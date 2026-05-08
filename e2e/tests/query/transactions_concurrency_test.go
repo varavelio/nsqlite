@@ -175,7 +175,27 @@ func sendQuery(
 	baseURL string,
 	queries ...harness.Query,
 ) (harness.QueryResponse, error) {
-	body, err := json.Marshal(queries)
+	rpcQueries := make([]map[string]any, 0, len(queries))
+	for _, query := range queries {
+		rpcQuery := map[string]any{"query": query.Query}
+		if query.TxID != "" {
+			rpcQuery["txId"] = query.TxID
+		}
+		if len(query.Params) > 0 {
+			rpcParams := make([]map[string]any, 0, len(query.Params))
+			for _, param := range query.Params {
+				rpcParam := map[string]any{"value": map[string]any{"integer": param.Value}}
+				if param.Name != "" {
+					rpcParam["name"] = param.Name
+				}
+				rpcParams = append(rpcParams, rpcParam)
+			}
+			rpcQuery["params"] = rpcParams
+		}
+		rpcQueries = append(rpcQueries, rpcQuery)
+	}
+
+	body, err := json.Marshal(map[string]any{"queries": rpcQueries})
 	if err != nil {
 		return harness.QueryResponse{}, fmt.Errorf("marshal body: %w", err)
 	}
@@ -183,7 +203,7 @@ func sendQuery(
 	req, err := http.NewRequestWithContext(
 		context.Background(),
 		http.MethodPost,
-		baseURL+"/query",
+		baseURL+harness.DatabaseQueryPath,
 		bytes.NewReader(body),
 	)
 	if err != nil {
@@ -209,8 +229,8 @@ func sendQuery(
 		)
 	}
 
-	var qr harness.QueryResponse
-	if err := json.Unmarshal(respBody, &qr); err != nil {
+	qr, err := harness.DecodeQueryResponseBody(respBody)
+	if err != nil {
 		return harness.QueryResponse{}, fmt.Errorf("decode response body: %w", err)
 	}
 

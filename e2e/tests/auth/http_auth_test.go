@@ -34,12 +34,10 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 		func(t *testing.T) {
 			for _, token := range adminTokens.multiTokenClientValues() {
 				t.Run(token, func(t *testing.T) {
-					stats := server.Get(t, "/stats", token)
+					stats := server.StatusResponse(t, token)
 					require.Equal(t, http.StatusOK, stats.StatusCode)
 
-					version := server.Get(t, "/version", token)
-					require.Equal(t, http.StatusOK, version.StatusCode)
-					require.Equal(t, "0.0.0-dev", string(version.Body))
+					require.Equal(t, "0.0.0-dev", server.Version(t, token))
 
 					response := server.Query(
 						t,
@@ -73,13 +71,7 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 
 					assertAPIError(
 						t,
-						server.Get(t, "/stats", token),
-						http.StatusForbidden,
-						"Forbidden",
-					)
-					assertAPIError(
-						t,
-						server.Get(t, "/version", token),
+						server.StatusResponse(t, token),
 						http.StatusForbidden,
 						"Forbidden",
 					)
@@ -98,13 +90,7 @@ func TestRoleTokensSupportPlaintextBcryptAndArgon2(t *testing.T) {
 
 					assertAPIError(
 						t,
-						server.Get(t, "/stats", token),
-						http.StatusForbidden,
-						"Forbidden",
-					)
-					assertAPIError(
-						t,
-						server.Get(t, "/version", token),
+						server.StatusResponse(t, token),
 						http.StatusForbidden,
 						"Forbidden",
 					)
@@ -131,7 +117,7 @@ func TestArgon2ConfiguredTokensAuthenticateAcrossRoles(t *testing.T) {
 			name: "admin argon2 token on stats",
 			cfg:  harness.ServerConfig{AuthToken: adminTokens.argon2Hash},
 			request: func(t *testing.T, server *harness.Server) harness.HTTPResponse {
-				return server.Get(t, "/stats", adminTokens.argon2Client)
+				return server.StatusResponse(t, adminTokens.argon2Client)
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -139,7 +125,7 @@ func TestArgon2ConfiguredTokensAuthenticateAcrossRoles(t *testing.T) {
 			name: "read-write argon2 token on query",
 			cfg:  harness.ServerConfig{AuthTokenRW: rwTokens.argon2Hash},
 			request: func(t *testing.T, server *harness.Server) harness.HTTPResponse {
-				return server.PostJSON(t, "/query", []harness.Query{{Query: "SELECT 1;"}}, rwTokens.argon2Client)
+				return server.QueryResponse(t, rwTokens.argon2Client, harness.Query{Query: "SELECT 1;"})
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -147,7 +133,7 @@ func TestArgon2ConfiguredTokensAuthenticateAcrossRoles(t *testing.T) {
 			name: "read-only argon2 token on query",
 			cfg:  harness.ServerConfig{AuthTokenRO: roTokens.argon2Hash},
 			request: func(t *testing.T, server *harness.Server) harness.HTTPResponse {
-				return server.PostJSON(t, "/query", []harness.Query{{Query: "SELECT 1;"}}, roTokens.argon2Client)
+				return server.QueryResponse(t, roTokens.argon2Client, harness.Query{Query: "SELECT 1;"})
 			},
 			expectedStatus: http.StatusOK,
 		},
@@ -175,7 +161,7 @@ func TestSharedTokenRolePrecedenceIsObservable(t *testing.T) {
 			AuthTokenRW: "shared-token",
 		})
 
-		statsResponse := server.Get(t, "/stats", "shared-token")
+		statsResponse := server.StatusResponse(t, "shared-token")
 		require.Equal(t, http.StatusOK, statsResponse.StatusCode)
 
 		writeResponse := server.Query(
@@ -205,7 +191,7 @@ func TestSharedTokenRolePrecedenceIsObservable(t *testing.T) {
 
 		assertAPIError(
 			t,
-			server.Get(t, "/stats", "shared-token"),
+			server.StatusResponse(t, "shared-token"),
 			http.StatusForbidden,
 			"Forbidden",
 		)
@@ -257,12 +243,12 @@ func TestReadOnlyTokenReceivesSQLiteAuthorizationErrorsForWriteAndTransactionQue
 			response := postJSONWithAuthorization(
 				t,
 				server,
-				"/query",
-				testCase.queries,
+				harness.DatabaseQueryPath,
+				map[string]any{"queries": testCase.queries},
 				"Bearer read-only-token",
 			)
 			require.Equal(t, http.StatusOK, response.StatusCode)
-			queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+			queryResponse := harness.DecodeQueryResponse(t, response).WithoutTiming()
 			require.Equal(t, "error", queryResponse.Results[0].Type)
 			require.Contains(t, queryResponse.Results[0].Error, "23: authorization denied")
 
@@ -287,12 +273,12 @@ func TestReadOnlyTokenReceivesSQLiteAuthorizationErrorsForWriteAndTransactionQue
 			response := postJSONWithAuthorization(
 				t,
 				server,
-				"/query",
-				[]harness.Query{{TxID: txID, Query: testCase.query}},
+				harness.DatabaseQueryPath,
+				map[string]any{"queries": []harness.Query{{TxID: txID, Query: testCase.query}}},
 				"Bearer read-only-token",
 			)
 			require.Equal(t, http.StatusOK, response.StatusCode)
-			queryResponse := harness.DecodeJSON[harness.QueryResponse](t, response).WithoutTiming()
+			queryResponse := harness.DecodeQueryResponse(t, response).WithoutTiming()
 			require.Equal(t, "error", queryResponse.Results[0].Type)
 			require.Contains(t, queryResponse.Results[0].Error, "transaction ID does not match")
 

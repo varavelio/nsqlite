@@ -23,6 +23,7 @@ node_modules
 .wrangler
 .svelte-kit
 build
+site
 
 # OS
 .DS_Store

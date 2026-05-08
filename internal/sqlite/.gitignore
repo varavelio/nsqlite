@@ -1,4 +1,0 @@
-# All .c and .h files except the sqlite.c wrapper
-*.c
-*.h
-!sqlite.c

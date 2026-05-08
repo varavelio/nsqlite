@@ -1,0 +1,137 @@
+""" QueryResultType represents the type of a given SQLite query. """
+enum QueryResultType {
+  """ A read-only query (SELECT). """
+  Read = "read"
+  """ A write query (INSERT, UPDATE, DELETE, CREATE, etc.). """
+  Write = "write"
+  """ A BEGIN TRANSACTION query. """
+  Begin = "begin"
+  """ A COMMIT TRANSACTION query. """
+  Commit = "commit"
+  """ A ROLLBACK TRANSACTION query. """
+  Rollback = "rollback"
+  """ An error result produced by an empty or failed query. """
+  Error = "error"
+}
+
+""" SqliteStorageClass represents the storage class of a given SQLite value. """
+enum SqliteStorageClass {
+  """ The SQL NULL value. """
+  Null = "NULL"
+  """ A signed integer. """
+  Integer = "INTEGER"
+  """ A floating-point value. """
+  Real = "REAL"
+  """ A text string. """
+  Text = "TEXT"
+  """ A binary blob. """
+  Blob = "BLOB"
+}
+
+"""
+Represents one SQLite value.
+
+Exactly one field must be present.
+
+Mappings:
+- null    -> SQLite NULL
+- integer -> SQLite INTEGER
+- real    -> SQLite REAL
+- text    -> SQLite TEXT
+- blob    -> SQLite BLOB encoded as base64
+"""
+type SqliteValue {
+  """ SQL NULL value. """
+  null? bool
+  """ SQL INTEGER value. """
+  integer? int
+  """ SQL REAL value. """
+  real? float
+  """ SQL TEXT value. """
+  text? string
+  """ SQL BLOB value encoded as base64. """
+  blob? string
+}
+
+"""
+Represents one SQLite query parameter.
+
+When name is omitted, the parameter is positional.
+When name is present, the parameter is named.
+"""
+type QueryParam {
+  """ Parameter name for named parameters. Omitted for positional parameters. """
+  name? string
+  """ The parameter value. """
+  value SqliteValue
+}
+
+"""
+Represents one SQL query execution request.
+
+- txId is used to execute the query inside an existing transaction.
+"""
+type Query {
+  """ Transaction ID to execute the query within an existing transaction. """
+  txId? string
+  """ The SQL query string. """
+  query string
+  """ Optional query parameters. """
+  params? QueryParam[]
+}
+
+"""
+Represents one SQL query execution result.
+
+- For read/write results with returned rows, columns, types, and rows are present.
+- For begin results, txId is present.
+- For write results, lastInsertId and rowsAffected are present.
+- For error results, error is present.
+"""
+type QueryResult {
+  """ The type of result (read, write, begin, commit, rollback, or error). """
+  type QueryResultType
+  """ Query execution time in seconds (as a floating-point duration). """
+  time float
+
+  """ Error message, present when type is "error". """
+  error? string
+  """ Transaction ID, present when type is "begin". """
+  txId? string
+
+  """ The rowid of the last inserted row, present for write results. """
+  lastInsertId? int
+  """ The number of rows affected, present for write results. """
+  rowsAffected? int
+
+  """ Column names for the returned rows, present for read/write results. """
+  columns? string[]
+  """ Storage class of each column for the returned rows. """
+  types? SqliteStorageClass[]
+  """ The returned rows, each row being an array of SqliteValue. """
+  rows? SqliteValue[][]
+}
+
+@rpc
+type Database {
+  """
+  Executes one or more SQL queries against the database.
+
+  Queries are executed in order and each query returns one result item.
+  Empty or failed queries are returned as result items with type "error".
+  """
+  @proc
+  query {
+    input {
+      """ The list of SQL queries to execute in order. """
+      queries Query[]
+    }
+
+    output {
+      """ Total execution time in seconds for all queries. """
+      time float
+      """ One result per input query, in the same order. """
+      results QueryResult[]
+    }
+  }
+}

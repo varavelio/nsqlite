@@ -1,0 +1,97 @@
+""" AuthRole represents the authentication role assigned to a session. """
+enum AuthRole {
+  """ Full administrative access. """
+  Admin = "admin"
+  """ Read and write access to the database. """
+  ReadWrite = "rw"
+  """ Read-only access to the database. """
+  ReadOnly = "ro"
+}
+
+""" Statistics counters for operations that have completed. """
+type StatsTotalsCounters {
+  """ Total number of completed read queries. """
+  reads int
+  """ Total number of completed write queries. """
+  writes int
+  """ Total number of completed BEGIN TRANSACTION statements. """
+  begins int
+  """ Total number of completed COMMIT statements. """
+  commits int
+  """ Total number of completed ROLLBACK statements. """
+  rollbacks int
+  """ Total number of queries that resulted in an error. """
+  errors int
+  """ Total number of HTTP requests received. """
+  httpRequests int
+}
+
+""" Statistics counters for operations that are currently queued or in-flight. """
+type StatsQueuedCounters {
+  """ Number of BEGIN TRANSACTION statements currently queued. """
+  begins int
+  """ Number of write queries currently queued. """
+  writes int
+  """ Number of HTTP requests currently being processed or queued. """
+  httpRequests int
+}
+
+""" Aggregated server statistics including totals, queued operations, and per-minute history. """
+type Stats {
+  """ The server start time. """
+  startedAt datetime
+  """ Number of seconds since the server started. """
+  uptimeSeconds float
+
+  """ Cumulative counters for all completed operations. """
+  totals StatsTotalsCounters
+  """ Counters for currently queued or in-flight operations. """
+  queued StatsQueuedCounters
+
+  """ Per-minute counters keyed by UTC minute in RFC3339 format. """
+  minutes map[StatsTotalsCounters]
+}
+
+@rpc
+type System {
+  """
+  Checks whether the server can perform a basic database read.
+  """
+  @proc
+  health {
+    output {
+      """ Whether the server is healthy and fully operational. """
+      healthy bool
+      """ Whether the database is reachable and responsive. """
+      database bool
+      """ A human-readable message describing the health state. """
+      message string
+    }
+  }
+
+  """
+  Returns the authentication role for the current session.
+  """
+  @proc
+  session {
+    output {
+      """ The authentication role assigned to the current session. """
+      role AuthRole
+    }
+  }
+
+  """
+  Returns server information and runtime statistics.
+  """
+  @proc
+  status {
+    output {
+      """ The server name. """
+      name string
+      """ The server version string. """
+      version string
+      """ Current runtime statistics. """
+      stats Stats
+    }
+  }
+}

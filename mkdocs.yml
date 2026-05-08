@@ -73,8 +73,8 @@ plugins:
       full_output: llms.txt
       base_url: https://nsqlite.varavel.com
       sections:
-        Documentation:
-          - docs/*.md
+        Reference:
+          - reference/*.md
 
 extra_javascript:
   - assets/js/llms-link.js

@@ -12,7 +12,7 @@ const config = {
 
   hooks {
     postGenerate [
-      "cd .. && task format"
+      "cd .. && go fmt ./internal/vdl/..."
     ]
   }
 

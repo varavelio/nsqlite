@@ -1,40 +1,22 @@
 import { type Client, NewClient } from "$lib/client/client";
+import { type ParsedDsn, parseDsn, rpcUrl } from "$lib/dsn";
 
-const TOKEN_KEY = "nsqlite_token";
-const BASE_URL_KEY = "nsqlite_baseUrl";
-
-function defaultBaseUrl(): string {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return window.location.origin;
-  }
-  return "";
-}
-
-function stripRpcSuffix(url: string): string {
-  return url
-    .trim()
-    .replace(/\/+rpc\/?$/, "")
-    .replace(/\/+$/, "");
-}
-
-function rpcUrl(baseUrl: string): string {
-  return `${baseUrl.replace(/\/+$/, "")}/rpc`;
-}
+const DSN_KEY = "nsqlite_dsn";
 
 class WebAppStore {
-  token = $state("");
-  baseUrl = $state("");
+  dsn = $state("");
+  parsed = $state<ParsedDsn | null>(null);
   client = $state<Client | null>(null);
   error = $state("");
   loaded = $state(false);
 
   constructor() {
     if (typeof localStorage !== "undefined") {
-      this.token = localStorage.getItem(TOKEN_KEY) ?? "";
-      this.baseUrl = stripRpcSuffix(
-        localStorage.getItem(BASE_URL_KEY) ?? defaultBaseUrl(),
-      );
-      if (this.token && this.baseUrl) {
+      this.dsn = localStorage.getItem(DSN_KEY) ?? "";
+    }
+    if (this.dsn) {
+      this.parsed = parseDsn(this.dsn);
+      if (this.parsed.host) {
         this.buildClient();
       }
     }
@@ -42,9 +24,16 @@ class WebAppStore {
   }
 
   private buildClient() {
+    if (!this.parsed) return;
     try {
-      this.client = NewClient(rpcUrl(this.baseUrl))
-        .withGlobalHeader("authorization", `Bearer ${this.token}`)
+      const builder = NewClient(rpcUrl(this.parsed));
+      if (this.parsed.authToken) {
+        builder.withGlobalHeader(
+          "authorization",
+          `Bearer ${this.parsed.authToken}`,
+        );
+      }
+      this.client = builder
         .withGlobalTimeoutConfig({ timeoutMs: 10000 })
         .build();
       this.error = "";
@@ -53,32 +42,26 @@ class WebAppStore {
     }
   }
 
-  setToken(token: string) {
-    this.token = token;
+  setDsn(dsn: string) {
+    this.dsn = dsn;
+    this.parsed = parseDsn(dsn);
     if (typeof localStorage !== "undefined") {
-      localStorage.setItem(TOKEN_KEY, token);
+      localStorage.setItem(DSN_KEY, dsn);
     }
-    if (this.baseUrl) {
+    if (this.parsed.host) {
       this.buildClient();
     }
   }
 
-  setBaseUrl(url: string) {
-    this.baseUrl = stripRpcSuffix(url);
-    if (typeof localStorage !== "undefined") {
-      localStorage.setItem(BASE_URL_KEY, this.baseUrl);
-    }
-    if (this.token) {
-      this.buildClient();
-    }
-  }
-
-  verifyToken(baseUrl: string, token: string): Promise<void> {
-    const url = stripRpcSuffix(baseUrl);
+  verifyDsn(dsn: string): Promise<void> {
+    const parsed = parseDsn(dsn);
     this.error = "";
     return new Promise((resolve, reject) => {
-      const tempClient = NewClient(rpcUrl(url))
-        .withGlobalHeader("authorization", `Bearer ${token}`)
+      const builder = NewClient(rpcUrl(parsed));
+      if (parsed.authToken) {
+        builder.withGlobalHeader("authorization", `Bearer ${parsed.authToken}`);
+      }
+      const tempClient = builder
         .withGlobalTimeoutConfig({ timeoutMs: 10000 })
         .build();
       tempClient.procs
@@ -86,11 +69,10 @@ class WebAppStore {
         .execute()
         .then((result) => {
           if (result.role) {
-            this.setBaseUrl(url);
-            this.setToken(token);
+            this.setDsn(dsn);
             resolve();
           } else {
-            reject(new Error("Invalid token"));
+            reject(new Error("Invalid session"));
           }
         })
         .catch((e) => {
@@ -100,11 +82,12 @@ class WebAppStore {
   }
 
   logout() {
-    this.token = "";
+    this.dsn = "";
     this.client = null;
     this.error = "";
+    this.parsed = null;
     if (typeof localStorage !== "undefined") {
-      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(DSN_KEY);
     }
   }
 }

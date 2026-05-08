@@ -6,15 +6,12 @@
 !.env.local
 
 # Temp & Dist
-/temptest
-/temp
-/tmp
-/dist
-/.task
-/completion
-
-# DB Data
-/data
+temptest
+temp
+tmp
+dist
+.task
+completion
 
 # Node
 node_modules
@@ -24,8 +21,8 @@ node_modules
 .vercel
 .netlify
 .wrangler
-/.svelte-kit
-/build
+.svelte-kit
+build
 
 # OS
 .DS_Store

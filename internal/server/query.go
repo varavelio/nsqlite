@@ -123,20 +123,31 @@ func (s *Server) executeRequestQuery(
 		return s.emptyQueryResult(ctx, query, startedAt), false
 	}
 
+	principal, _ := getAuthPrincipalFromContext(ctx)
+
 	result, err := s.DB.Query(ctx, db.Query{
-		TxID:             query.TxID,
-		Query:            query.Query,
-		Params:           query.Params,
-		ValidateReadOnly: role == authRoleReadOnly,
+		TxID:    query.TxID,
+		Query:   query.Query,
+		Params:  query.Params,
+		Role:    authorizerRoleForAuthRole(role),
+		TxOwner: principal,
 	})
 	if err != nil {
-		if errors.Is(err, db.ErrReadOnly) {
-			return ResponseResult{}, true
-		}
 		return s.executionErrorResult(ctx, query, startedAt, err), false
 	}
 
 	return buildResponseResult(startedAt, result), false
+}
+
+func authorizerRoleForAuthRole(role authRole) sqlite.AuthorizerRole {
+	switch role {
+	case authRoleReadWrite:
+		return sqlite.AuthorizerRoleReadWrite
+	case authRoleReadOnly:
+		return sqlite.AuthorizerRoleReadOnly
+	default:
+		return sqlite.AuthorizerRoleAdmin
+	}
 }
 
 // emptyQueryResult builds the response payload for an empty query.

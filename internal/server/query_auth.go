@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/varavelio/nsqlite/internal/db"
 	"github.com/varavelio/nsqlite/internal/util/cryptoutil"
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
@@ -182,18 +181,4 @@ func forbiddenError() error {
 func getAuthRoleFromContext(ctx context.Context) (authRole, bool) {
 	role, ok := ctx.Value(authRoleContextKey).(authRole)
 	return role, ok
-}
-
-// isQueryAllowed reports whether a role can execute a classified query type.
-func isQueryAllowed(role authRole, queryType db.QueryType) bool {
-	switch role {
-	case authRoleAdmin:
-		return true
-	case authRoleReadWrite:
-		return true
-	case authRoleReadOnly:
-		return queryType == db.QueryTypeRead
-	default:
-		return false
-	}
 }

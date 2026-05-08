@@ -111,8 +111,8 @@ func decodeQueries(r *http.Request) ([]Query, error) {
 	return queries, nil
 }
 
-// executeRequestQuery classifies a single request query, checks authorization,
-// executes it, and formats the HTTP response payload.
+// executeRequestQuery sends a single request query to the database and formats
+// the HTTP response payload.
 func (s *Server) executeRequestQuery(
 	ctx context.Context,
 	role authRole,
@@ -124,27 +124,16 @@ func (s *Server) executeRequestQuery(
 		return s.emptyQueryResult(ctx, query, startedAt), false
 	}
 
-	if err := s.DB.ValidateTxID(query.TxID); err != nil {
-		s.DBStats.IncErrors()
-		return s.executionErrorResult(ctx, query, startedAt, err), false
-	}
-
-	queryType, err := s.DB.ClassifyQuery(ctx, query.Query, query.TxID)
-	if err != nil {
-		return s.classificationErrorResult(ctx, query, startedAt, err), false
-	}
-
-	if !isQueryAllowed(role, queryType) {
-		return ResponseResult{}, true
-	}
-
 	result, err := s.DB.Query(ctx, db.Query{
-		Type:   queryType,
-		TxID:   query.TxID,
-		Query:  query.Query,
-		Params: query.Params,
+		TxID:             query.TxID,
+		Query:            query.Query,
+		Params:           query.Params,
+		ValidateReadOnly: role == authRoleReadOnly,
 	})
 	if err != nil {
+		if errors.Is(err, db.ErrReadOnly) {
+			return ResponseResult{}, true
+		}
 		return s.executionErrorResult(ctx, query, startedAt, err), false
 	}
 

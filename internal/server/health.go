@@ -10,7 +10,6 @@ import (
 // healthHandler verifies that the server can still perform a simple database read.
 func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) error {
 	_, err := s.DB.Query(r.Context(), db.Query{
-		Type:  db.QueryTypeRead,
 		Query: "SELECT 1",
 	})
 	if err != nil {

@@ -25,6 +25,7 @@ var (
 	ErrTxNotMatch   = errors.New("transaction ID does not match the currently active transaction")
 	ErrTxWithinTx   = errors.New("cannot start a transaction within a transaction")
 	ErrTxIdRequired = errors.New("transaction ID is required for this operation")
+	ErrReadOnly     = errors.New("write query is not allowed in read-only mode")
 )
 
 // Config represents the configuration for a DB instance.
@@ -57,17 +58,17 @@ type DB struct {
 	txLastUsed        syncutil.AtomicTime
 	txIdleMonitorStop chan any
 	txMu              sync.Mutex
+	txOpMu            sync.Mutex
 	writeMu           sync.Mutex
 	closeWg           sync.WaitGroup
 }
 
 // Query represents a query to be executed.
-// Type must be provided by the caller.
 type Query struct {
-	Type   QueryType
-	TxID   string
-	Query  string
-	Params []sqlite.QueryParam
+	TxID             string
+	Query            string
+	Params           []sqlite.QueryParam
+	ValidateReadOnly bool
 }
 
 // QueryType represents the type of a given SQLite query.
@@ -143,6 +144,7 @@ func NewDB(config Config) (*DB, error) {
 		txLastUsed:        *syncutil.NewAtomicTime(time.Now()),
 		txIdleMonitorStop: make(chan any),
 		txMu:              sync.Mutex{},
+		txOpMu:            sync.Mutex{},
 		writeMu:           sync.Mutex{},
 		closeWg:           sync.WaitGroup{},
 	}
@@ -196,8 +198,7 @@ func (db *DB) IsInitialized() bool {
 	return db.isInitialized
 }
 
-// ValidateTxID checks whether a request transaction ID matches the active transaction.
-func (db *DB) ValidateTxID(txID string) error {
+func (db *DB) validateTxID(txID string) error {
 	if txID == "" {
 		return nil
 	}
@@ -224,8 +225,10 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 		case <-db.txIdleMonitorStop:
 			return
 		case <-ticker.C:
+			db.txOpMu.Lock()
 			txID := db.txID.Load()
 			if txID == "" {
+				db.txOpMu.Unlock()
 				continue
 			}
 			if time.Since(db.txLastUsed.Load()) > timeout {
@@ -236,6 +239,7 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 					"timeout", timeout.String(),
 				)
 			}
+			db.txOpMu.Unlock()
 		}
 	}
 }
@@ -245,10 +249,12 @@ func (db *DB) Close() error {
 	close(db.txIdleMonitorStop)
 	db.closeWg.Wait()
 
+	db.txOpMu.Lock()
 	txID := db.txID.Load()
 	if txID != "" {
 		_, _ = db.executeRollbackQuery(context.Background(), txID)
 	}
+	db.txOpMu.Unlock()
 
 	if db.readWritePool != nil {
 		if err := db.readWritePool.Close(); err != nil {
@@ -321,18 +327,28 @@ func (db *DB) Query(ctx context.Context, query Query) (QueryResult, error) {
 
 // query is the underlying logic for Query.
 func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
-	if query.Type == QueryTypeUnknown {
-		return QueryResult{}, errors.New("query type is required")
+	if query.TxID != "" {
+		db.txOpMu.Lock()
+		defer db.txOpMu.Unlock()
 	}
 
-	if err := db.ValidateTxID(query.TxID); err != nil {
+	if err := db.validateTxID(query.TxID); err != nil {
 		return QueryResult{}, err
 	}
 	if query.TxID != "" {
 		db.txLastUsed.Store(time.Now())
+		defer func() { db.txLastUsed.Store(time.Now()) }()
 	}
 
-	switch query.Type {
+	queryType, err := db.ClassifyQuery(ctx, query.Query, query.TxID)
+	if err != nil {
+		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
+	}
+	if query.ValidateReadOnly && queryType != QueryTypeRead {
+		return QueryResult{}, ErrReadOnly
+	}
+
+	switch queryType {
 	case QueryTypeBegin:
 		return db.executeBeginQuery(ctx, query.TxID)
 	case QueryTypeCommit:
@@ -345,7 +361,7 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 		return db.executeWriteQuery(ctx, query)
 	}
 
-	return QueryResult{}, fmt.Errorf("unknown query type: %s", query.Type)
+	return QueryResult{}, fmt.Errorf("unknown query type: %s", queryType)
 }
 
 // executeBeginQuery executes a begin query using the read-write connection.

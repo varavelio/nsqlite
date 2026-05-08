@@ -25,7 +25,6 @@ var (
 	ErrTxNotMatch   = errors.New("transaction ID does not match the currently active transaction")
 	ErrTxWithinTx   = errors.New("cannot start a transaction within a transaction")
 	ErrTxIdRequired = errors.New("transaction ID is required for this operation")
-	ErrReadOnly     = errors.New("write query is not allowed in read-only mode")
 )
 
 // Config represents the configuration for a DB instance.
@@ -55,6 +54,7 @@ type DB struct {
 	readWritePool     *sql.DB
 	readOnlyPool      *sql.DB
 	txID              syncutil.AtomicString
+	txOwner           syncutil.AtomicString
 	txLastUsed        syncutil.AtomicTime
 	txIdleMonitorStop chan any
 	txMu              sync.Mutex
@@ -65,10 +65,11 @@ type DB struct {
 
 // Query represents a query to be executed.
 type Query struct {
-	TxID             string
-	Query            string
-	Params           []sqlite.QueryParam
-	ValidateReadOnly bool
+	TxID    string
+	TxOwner string
+	Query   string
+	Params  []sqlite.QueryParam
+	Role    sqlite.AuthorizerRole
 }
 
 // QueryType represents the type of a given SQLite query.
@@ -141,6 +142,7 @@ func NewDB(config Config) (*DB, error) {
 		readWritePool:     readWritePool,
 		readOnlyPool:      readOnlyPool,
 		txID:              *syncutil.NewAtomicString(""),
+		txOwner:           *syncutil.NewAtomicString(""),
 		txLastUsed:        *syncutil.NewAtomicTime(time.Now()),
 		txIdleMonitorStop: make(chan any),
 		txMu:              sync.Mutex{},
@@ -198,7 +200,7 @@ func (db *DB) IsInitialized() bool {
 	return db.isInitialized
 }
 
-func (db *DB) validateTxID(txID string) error {
+func (db *DB) validateTxID(txID, txOwner string) error {
 	if txID == "" {
 		return nil
 	}
@@ -208,6 +210,9 @@ func (db *DB) validateTxID(txID string) error {
 		return ErrTxNotFound
 	}
 	if txID != currentTxID {
+		return ErrTxNotMatch
+	}
+	if txOwner != "" && txOwner != db.txOwner.Load() {
 		return ErrTxNotMatch
 	}
 
@@ -232,7 +237,11 @@ func (db *DB) txIdleMonitor(timeout time.Duration) {
 				continue
 			}
 			if time.Since(db.txLastUsed.Load()) > timeout {
-				_, _ = db.executeRollbackQuery(context.Background(), txID)
+				_, _ = db.executeRollbackQuery(
+					context.Background(),
+					txID,
+					sqlite.AuthorizerRoleAdmin,
+				)
 				db.Logger.Info(context.Background(),
 					"transaction rolled back due to idle timeout",
 					"txId", txID,
@@ -252,7 +261,7 @@ func (db *DB) Close() error {
 	db.txOpMu.Lock()
 	txID := db.txID.Load()
 	if txID != "" {
-		_, _ = db.executeRollbackQuery(context.Background(), txID)
+		_, _ = db.executeRollbackQuery(context.Background(), txID, sqlite.AuthorizerRoleAdmin)
 	}
 	db.txOpMu.Unlock()
 
@@ -284,11 +293,16 @@ func (db *DB) ClassifyQuery(ctx context.Context, query, txID string) (QueryType,
 		return QueryTypeRollback, nil
 	}
 
-	conn, returnConn, err := db.getClassificationRawConn(ctx, txID)
-	if err != nil {
-		return QueryTypeUnknown, fmt.Errorf("failed to get connection: %w", err)
+	if txID != "" {
+		return db.classifyQueryOnReadWriteConn(ctx, query)
 	}
-	defer func() { _ = returnConn() }()
+	return db.classifyQueryOnReadOnlyConn(ctx, query)
+}
+
+func (db *DB) classifyPreparedQuery(conn *sqlite.Conn, query string) (QueryType, error) {
+	if err := conn.SetAuthorizerRole(sqlite.AuthorizerRoleAdmin); err != nil {
+		return QueryTypeUnknown, fmt.Errorf("failed to set classification authorizer role: %w", err)
+	}
 
 	stmt, err := conn.Prepare(query)
 	if err != nil {
@@ -302,17 +316,27 @@ func (db *DB) ClassifyQuery(ctx context.Context, query, txID string) (QueryType,
 	return QueryTypeWrite, nil
 }
 
-func (db *DB) getClassificationRawConn(
-	ctx context.Context,
-	txID string,
-) (*sqlite.Conn, func() error, error) {
-	// Transaction-bound classification must use the read-write pool because the
-	// active transaction lives there and sees uncommitted schema changes. This
-	// relies on the write pool being constrained to one open connection.
-	if txID != "" {
-		return db.getReadWriteRawConn(ctx)
+func (db *DB) classifyQueryOnReadOnlyConn(ctx context.Context, query string) (QueryType, error) {
+	conn, returnConn, err := db.getReadOnlyRawConn(ctx)
+	if err != nil {
+		return QueryTypeUnknown, fmt.Errorf("failed to get read-only connection: %w", err)
 	}
-	return db.getReadOnlyRawConn(ctx)
+	defer func() { _ = returnConn() }()
+
+	return db.classifyPreparedQuery(conn, query)
+}
+
+func (db *DB) classifyQueryOnReadWriteConn(ctx context.Context, query string) (QueryType, error) {
+	db.writeMu.Lock()
+	defer db.writeMu.Unlock()
+
+	conn, returnConn, err := db.getReadWriteRawConn(ctx)
+	if err != nil {
+		return QueryTypeUnknown, fmt.Errorf("failed to get read-write connection: %w", err)
+	}
+	defer func() { _ = returnConn() }()
+
+	return db.classifyPreparedQuery(conn, query)
 }
 
 // Query executes an SQLite query.
@@ -356,7 +380,7 @@ func (db *DB) query(ctx context.Context, query Query) (QueryResult, error) {
 }
 
 func (db *DB) queryWithType(ctx context.Context, query Query) (QueryResult, error) {
-	if err := db.validateTxID(query.TxID); err != nil {
+	if err := db.validateTxID(query.TxID, query.TxOwner); err != nil {
 		return QueryResult{}, err
 	}
 	if query.TxID != "" {
@@ -368,10 +392,6 @@ func (db *DB) queryWithType(ctx context.Context, query Query) (QueryResult, erro
 	if err != nil {
 		return QueryResult{}, fmt.Errorf("failed to detect query type: %w", err)
 	}
-	if query.ValidateReadOnly && queryType != QueryTypeRead {
-		return QueryResult{}, ErrReadOnly
-	}
-
 	return db.executeClassifiedQuery(ctx, query, queryType)
 }
 
@@ -380,17 +400,13 @@ func (db *DB) executeClassifiedQuery(
 	query Query,
 	queryType QueryType,
 ) (QueryResult, error) {
-	if query.ValidateReadOnly && queryType != QueryTypeRead {
-		return QueryResult{}, ErrReadOnly
-	}
-
 	switch queryType {
 	case QueryTypeBegin:
-		return db.executeBeginQuery(ctx, query.TxID)
+		return db.executeBeginQuery(ctx, query.TxID, query.Role, query.TxOwner)
 	case QueryTypeCommit:
-		return db.executeCommitQuery(ctx, query.TxID)
+		return db.executeCommitQuery(ctx, query.TxID, query.Role)
 	case QueryTypeRollback:
-		return db.executeRollbackQuery(ctx, query.TxID)
+		return db.executeRollbackQuery(ctx, query.TxID, query.Role)
 	case QueryTypeRead:
 		return db.executeReadQuery(ctx, query)
 	case QueryTypeWrite:
@@ -400,8 +416,34 @@ func (db *DB) executeClassifiedQuery(
 	return QueryResult{}, fmt.Errorf("unknown query type: %s", queryType)
 }
 
+func (db *DB) withReadWriteConn(
+	ctx context.Context,
+	role sqlite.AuthorizerRole,
+	fn func(*sqlite.Conn) (QueryResult, error),
+) (QueryResult, error) {
+	db.writeMu.Lock()
+	defer db.writeMu.Unlock()
+
+	conn, returnConn, err := db.getReadWriteRawConn(ctx)
+	if err != nil {
+		return QueryResult{}, fmt.Errorf("failed to get read-write connection from pool: %w", err)
+	}
+	defer func() { _ = returnConn() }()
+
+	if err := conn.SetAuthorizerRole(role); err != nil {
+		return QueryResult{}, fmt.Errorf("failed to set write connection authorizer role: %w", err)
+	}
+
+	return fn(conn)
+}
+
 // executeBeginQuery executes a begin query using the read-write connection.
-func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+func (db *DB) executeBeginQuery(
+	ctx context.Context,
+	queryTxID string,
+	role sqlite.AuthorizerRole,
+	queryTxOwner string,
+) (QueryResult, error) {
 	if queryTxID != "" {
 		return QueryResult{}, ErrTxWithinTx
 	}
@@ -414,21 +456,26 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryRes
 	//
 	// The unlock is done either in the commit or rollback functions.
 	db.txMu.Lock()
+	shouldUnlockTx := true
+	defer func() {
+		if shouldUnlockTx {
+			db.txMu.Unlock()
+		}
+	}()
 
-	conn, returnConn, err := db.getReadWriteRawConn(ctx)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to get read-write connection from pool: %w", err)
-	}
-	defer func() { _ = returnConn() }()
-
-	if _, err = conn.Query("BEGIN TRANSACTION", nil); err != nil {
+	if _, err := db.withReadWriteConn(ctx, role, func(conn *sqlite.Conn) (QueryResult, error) {
+		_, err := conn.Query("BEGIN TRANSACTION", nil)
+		return QueryResult{}, err
+	}); err != nil {
 		return QueryResult{}, fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
 	txID := uuid.NewString()
 	db.txID.Store(txID)
+	db.txOwner.Store(queryTxOwner)
 	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncBegins()
+	shouldUnlockTx = false
 
 	return QueryResult{
 		Type: QueryTypeBegin,
@@ -437,22 +484,24 @@ func (db *DB) executeBeginQuery(ctx context.Context, queryTxID string) (QueryRes
 }
 
 // executeCommitQuery commits the existing transaction with the given ID.
-func (db *DB) executeCommitQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+func (db *DB) executeCommitQuery(
+	ctx context.Context,
+	queryTxID string,
+	role sqlite.AuthorizerRole,
+) (QueryResult, error) {
 	if queryTxID == "" {
 		return QueryResult{}, ErrTxIdRequired
 	}
 
-	conn, returnConn, err := db.getReadWriteRawConn(ctx)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to get read-write connection from pool: %w", err)
-	}
-	defer func() { _ = returnConn() }()
-
-	if _, err = conn.Query("COMMIT", nil); err != nil {
+	if _, err := db.withReadWriteConn(ctx, role, func(conn *sqlite.Conn) (QueryResult, error) {
+		_, err := conn.Query("COMMIT", nil)
+		return QueryResult{}, err
+	}); err != nil {
 		return QueryResult{}, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	db.txID.Store("")
+	db.txOwner.Store("")
 	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncCommits()
 	db.txMu.Unlock()
@@ -463,22 +512,24 @@ func (db *DB) executeCommitQuery(ctx context.Context, queryTxID string) (QueryRe
 }
 
 // executeRollbackQuery rolls back an existing transaction.
-func (db *DB) executeRollbackQuery(ctx context.Context, queryTxID string) (QueryResult, error) {
+func (db *DB) executeRollbackQuery(
+	ctx context.Context,
+	queryTxID string,
+	role sqlite.AuthorizerRole,
+) (QueryResult, error) {
 	if queryTxID == "" {
 		return QueryResult{}, ErrTxIdRequired
 	}
 
-	conn, returnConn, err := db.getReadWriteRawConn(ctx)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to get read-write connection from pool: %w", err)
-	}
-	defer func() { _ = returnConn() }()
-
-	if _, err = conn.Query("ROLLBACK", nil); err != nil {
+	if _, err := db.withReadWriteConn(ctx, role, func(conn *sqlite.Conn) (QueryResult, error) {
+		_, err := conn.Query("ROLLBACK", nil)
+		return QueryResult{}, err
+	}); err != nil {
 		return QueryResult{}, fmt.Errorf("failed to rollback transaction: %w", err)
 	}
 
 	db.txID.Store("")
+	db.txOwner.Store("")
 	db.txLastUsed.Store(time.Now())
 	db.DBStats.IncRollbacks()
 	db.txMu.Unlock()
@@ -494,63 +545,86 @@ func (db *DB) executeWriteQuery(ctx context.Context, query Query) (QueryResult, 
 	db.DBStats.IncQueuedWrites()
 	defer db.DBStats.DecQueuedWrites()
 
-	db.writeMu.Lock()
-	defer db.writeMu.Unlock()
+	resQuery, err := db.withReadWriteConn(
+		ctx,
+		query.Role,
+		func(conn *sqlite.Conn) (QueryResult, error) {
+			res, err := conn.Query(query.Query, query.Params)
+			if err != nil {
+				return QueryResult{}, fmt.Errorf("failed to execute write query: %w", err)
+			}
 
-	conn, returnConn, err := db.getReadWriteRawConn(ctx)
+			return QueryResult{
+				Type:         QueryTypeWrite,
+				LastInsertID: res.LastInsertID,
+				RowsAffected: res.RowsAffected,
+				Columns:      res.Columns,
+				Types:        res.Types,
+				Rows:         res.Rows,
+			}, nil
+		},
+	)
 	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to get read-write connection from pool: %w", err)
-	}
-	defer func() { _ = returnConn() }()
-
-	res, err := conn.Query(query.Query, query.Params)
-	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to execute write query: %w", err)
+		return QueryResult{}, err
 	}
 
 	db.DBStats.IncWrites()
-	return QueryResult{
-		Type:         QueryTypeWrite,
-		LastInsertID: res.LastInsertID,
-		RowsAffected: res.RowsAffected,
-		Columns:      res.Columns,
-		Types:        res.Types,
-		Rows:         res.Rows,
-	}, nil
+	return resQuery, nil
 }
 
 // executeReadQuery executes a read query. If no transaction ID is provided, it
 // will use the read-only connection. If a transaction ID is provided, it will
 // use the read-write connection.
 func (db *DB) executeReadQuery(ctx context.Context, query Query) (QueryResult, error) {
-	var conn *sqlite.Conn
-	var returnConn func() error
-	var err error
-
 	if query.TxID == "" {
-		conn, returnConn, err = db.getReadOnlyRawConn(ctx)
+		conn, returnConn, err := db.getReadOnlyRawConn(ctx)
 		if err != nil {
 			return QueryResult{}, fmt.Errorf("failed to get read-only connection: %w", err)
 		}
 		defer func() { _ = returnConn() }()
-	} else {
-		conn, returnConn, err = db.getReadWriteRawConn(ctx)
-		if err != nil {
-			return QueryResult{}, fmt.Errorf("failed to get read-write connection: %w", err)
+
+		if err := conn.SetAuthorizerRole(query.Role); err != nil {
+			return QueryResult{}, fmt.Errorf(
+				"failed to set read connection authorizer role: %w",
+				err,
+			)
 		}
-		defer func() { _ = returnConn() }()
+
+		res, err := conn.Query(query.Query, query.Params)
+		if err != nil {
+			return QueryResult{}, fmt.Errorf("failed to execute read query: %w", err)
+		}
+
+		db.DBStats.IncReads()
+		return QueryResult{
+			Type:    QueryTypeRead,
+			Columns: res.Columns,
+			Types:   res.Types,
+			Rows:    res.Rows,
+		}, nil
 	}
 
-	res, err := conn.Query(query.Query, query.Params)
+	resQuery, err := db.withReadWriteConn(
+		ctx,
+		query.Role,
+		func(conn *sqlite.Conn) (QueryResult, error) {
+			res, err := conn.Query(query.Query, query.Params)
+			if err != nil {
+				return QueryResult{}, fmt.Errorf("failed to execute read query: %w", err)
+			}
+
+			return QueryResult{
+				Type:    QueryTypeRead,
+				Columns: res.Columns,
+				Types:   res.Types,
+				Rows:    res.Rows,
+			}, nil
+		},
+	)
 	if err != nil {
-		return QueryResult{}, fmt.Errorf("failed to execute read query: %w", err)
+		return QueryResult{}, err
 	}
 
 	db.DBStats.IncReads()
-	return QueryResult{
-		Type:    QueryTypeRead,
-		Columns: res.Columns,
-		Types:   res.Types,
-		Rows:    res.Rows,
-	}, nil
+	return resQuery, nil
 }

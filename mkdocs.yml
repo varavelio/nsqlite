@@ -19,7 +19,7 @@ nav:
 theme:
   name: material
   logo: https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg
-  favicon: https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/ns.svg
+  favicon: https://cdn.jsdelivr.net/gh/varavelio/nsqlite@76fd87/assets/icon.svg
   features:
     - search.suggest
     - navigation.instant

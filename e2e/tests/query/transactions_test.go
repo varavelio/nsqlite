@@ -1,6 +1,7 @@
 package query_test
 
 import (
+	"fmt"
 	"testing"
 	"time"
 
@@ -17,10 +18,46 @@ func requireSuccessfulQueryResult(
 
 	require.Len(t, response.Results, 1)
 	result := response.Results[0]
-	require.Equal(t, expectedType, result.Type)
+	require.Equalf(t, expectedType, result.Type, "unexpected query error: %s", result.Error)
 	require.Empty(t, result.Error)
 
 	return result
+}
+
+func calibratedLongRunningReadQuery(
+	t testing.TB,
+	server *harness.Server,
+	minDuration time.Duration,
+) (string, float64) {
+	t.Helper()
+
+	limits := []int{100_000, 250_000, 500_000, 1_000_000, 2_500_000, 5_000_000, 10_000_000}
+	for _, limit := range limits {
+		query := recursiveCounterQuery(limit)
+		startedAt := time.Now()
+		response := server.Query(t, "", harness.Query{Query: query})
+		elapsed := time.Since(startedAt)
+
+		result := requireSuccessfulQueryResult(t, response, "read")
+		expected := float64(limit)
+		require.Equal(t, [][]any{{expected}}, result.Rows)
+
+		if elapsed >= minDuration {
+			return query, expected
+		}
+	}
+
+	t.Fatalf("failed to calibrate a read query lasting at least %s", minDuration)
+	return "", 0
+}
+
+func recursiveCounterQuery(limit int) string {
+	return fmt.Sprintf(`WITH RECURSIVE counter(value) AS (
+  VALUES(0)
+  UNION ALL
+  SELECT value + 1 FROM counter WHERE value < %d
+)
+SELECT max(value) FROM counter;`, limit)
 }
 
 func TestTransactionsCommitMakesChangesVisibleOutsideTheTransaction(t *testing.T) {
@@ -423,6 +460,29 @@ func TestTransactionsRollbackIdleTransactionsAutomatically(t *testing.T) {
 
 	afterTimeout := server.Query(t, "", harness.Query{Query: "SELECT COUNT(*) FROM users;"})
 	require.Equal(t, [][]any{{float64(0)}}, afterTimeout.Results[0].Rows)
+}
+
+func TestTransactionsDoNotTimeoutWhileAQueryIsRunning(t *testing.T) {
+	t.Parallel()
+
+	txIdleTimeout := 50 * time.Millisecond
+	server := harness.StartServer(t, harness.ServerConfig{TxIdleTimeout: txIdleTimeout})
+	longQuery, expectedMax := calibratedLongRunningReadQuery(t, server, 5*txIdleTimeout)
+
+	begin := server.Query(t, "", harness.Query{Query: "BEGIN;"})
+	beginResult := requireSuccessfulQueryResult(t, begin, "begin")
+	txID := beginResult.TxID
+	require.NotEmpty(t, txID)
+
+	longRead := server.Query(t, "", harness.Query{
+		Query: longQuery,
+		TxID:  txID,
+	})
+	longReadResult := requireSuccessfulQueryResult(t, longRead, "read")
+	require.Equal(t, [][]any{{expectedMax}}, longReadResult.Rows)
+
+	commit := server.Query(t, "", harness.Query{Query: "COMMIT;", TxID: txID})
+	requireSuccessfulQueryResult(t, commit, "commit")
 }
 
 func TestTransactionsRejectNestedAndClosedTransactionReuse(t *testing.T) {

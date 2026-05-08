@@ -37,10 +37,13 @@ const (
 
 // ServerConfig defines the NSQLite process configuration for one E2E test.
 type ServerConfig struct {
-	AuthToken     string
-	AuthTokenRW   string
-	AuthTokenRO   string
-	TxIdleTimeout time.Duration
+	AuthToken            string
+	AuthTokenRW          string
+	AuthTokenRO          string
+	TxIdleTimeout        time.Duration
+	DisableCORS          bool
+	CORSAllowedOrigins   string
+	CORSAllowCredentials bool
 }
 
 // Server represents one running NSQLite process under test.
@@ -124,6 +127,15 @@ func startServerAttempt(
 	}
 	if cfg.TxIdleTimeout > 0 {
 		cmd.Env = append(cmd.Env, "NSQLITE_TX_IDLE_TIMEOUT="+cfg.TxIdleTimeout.String())
+	}
+	if cfg.DisableCORS {
+		cmd.Env = append(cmd.Env, "NSQLITE_DISABLE_CORS=true")
+	}
+	if cfg.CORSAllowedOrigins != "" {
+		cmd.Env = append(cmd.Env, "NSQLITE_CORS_ALLOWED_ORIGINS="+cfg.CORSAllowedOrigins)
+	}
+	if cfg.CORSAllowCredentials {
+		cmd.Env = append(cmd.Env, "NSQLITE_CORS_ALLOW_CREDENTIALS=true")
 	}
 	cmd.Stdout = &server.stdout
 	cmd.Stderr = &server.stderr

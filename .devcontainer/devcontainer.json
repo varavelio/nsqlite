@@ -15,11 +15,18 @@
       "extensions": [
         "golang.go",
         "dprint.dprint",
-        "JacobPfeifer.pfeifer-hurl"
+        "JacobPfeifer.pfeifer-hurl",
+        "svelte.svelte-vscode",
+        "Chanzhaoyu.svelte-5-snippets",
+        "bradlc.vscode-tailwindcss",
+        "biomejs.biome"
       ],
       "settings": {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "dprint.dprint",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.biome": "explicit"
+        },
 
         "[go]": {
           "editor.defaultFormatter": "golang.go"
@@ -40,7 +47,24 @@
         "go.formatFlags": [
           "fmt",
           "--stdin"
-        ]
+        ],
+
+        "files.associations": {
+          "*.css": "tailwindcss"
+        },
+        "css.validate": false,
+
+        "[javascript]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        },
+        "[typescript]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        },
+
+        "svelte.enable-ts-plugin": true,
+        "[svelte]": {
+          "editor.defaultFormatter": "biomejs.biome"
+        }
       }
     }
   }

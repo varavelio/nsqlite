@@ -110,10 +110,15 @@ func (s *Server) Stop() error {
 func (s *Server) createMux() *http.ServeMux {
 	buildHandler := httputil.CreateHandlerFuncBuilder(s.errorHandler)
 	mux := http.NewServeMux()
-	mux.HandleFunc(
-		"POST /rpc/{rpcName}/{operationName}",
-		buildHandler(s.rpcHandler),
-	)
+
+	// NSQLite RPC endpoint
+	mux.HandleFunc("POST /rpc/{rpcName}/{operationName}", buildHandler(s.rpcHandler))
+
+	// NSQLite <-> RQLite compatibility endpoints
+	mux.HandleFunc("GET /db/query", buildHandler(s.rqliteQueryHandler))
+	mux.HandleFunc("POST /db/query", buildHandler(s.rqliteQueryHandler))
+	mux.HandleFunc("POST /db/execute", buildHandler(s.rqliteExecuteHandler))
+	mux.HandleFunc("POST /db/request", buildHandler(s.rqliteRequestHandler))
 
 	return mux
 }

@@ -1,4 +1,4 @@
-# NSQLite Configuration Reference
+# Server Configuration
 
 All configuration is performed through **environment variables**.
 

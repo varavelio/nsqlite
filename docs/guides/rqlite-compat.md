@@ -1,4 +1,4 @@
-# rqlite API Compatibility
+# RQLite API Compatibility
 
 NSQLite provides an additive compatibility layer for clients that use the [rqlite HTTP API](https://rqlite.io/docs/api/api/) format. This layer translates rqlite-style requests into NSQLite's native query execution path and translates responses back to the rqlite JSON shape.
 

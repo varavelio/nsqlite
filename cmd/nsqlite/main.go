@@ -43,9 +43,6 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		"dataDir", conf.DataDir,
 		"listenHost", conf.ListenHost,
 		"listenPort", conf.ListenPort,
-		"corsAllowedOrigins", conf.CORSAllowedOrigins(),
-		"corsAllowedHeaders", conf.CORSAllowedHeaders(),
-		"corsAllowCredentials", conf.CORSAllowCredentials,
 		"txIdleTimeout", conf.TxIdleTimeout.String(),
 		"maxReadConns", conf.MaxReadConns,
 		"cacheSizeKB", conf.CacheSizeKB,
@@ -83,13 +80,8 @@ func run(ctx context.Context, stop context.CancelFunc, stdout io.Writer, args []
 		ReadOnlyAuthTokens:  conf.ReadOnlyAuthTokens(),
 		ListenHost:          conf.ListenHost,
 		ListenPort:          conf.ListenPort,
-		CORS: server.CORSConfig{
-			AllowedOrigins:   conf.CORSAllowedOrigins(),
-			AllowedHeaders:   conf.CORSAllowedHeaders(),
-			AllowCredentials: conf.CORSAllowCredentials,
-		},
-		MaxRequestSizeMB: conf.MaxRequestSizeMB,
-		IdleTimeout:      120 * time.Second,
+		MaxRequestSizeMB:    conf.MaxRequestSizeMB,
+		IdleTimeout:         120 * time.Second,
 	})
 	if err != nil {
 		return fmt.Errorf("error creating server: %w", err)

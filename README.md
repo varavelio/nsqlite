@@ -14,13 +14,7 @@
   <a href="https://github.com/varavelio/nsqlite/releases/latest">
     <img src="https://img.shields.io/github/release/varavelio/nsqlite.svg" alt="Release Version"/>
   </a>
-  <a href="https://hub.docker.com/r/varavel/nsqlite">
-    <img alt="Docker Hub Pulls" src="https://img.shields.io/docker/pulls/varavel/nsqlite?label=docker%20hub%20pulls"/>
-  </a>
-  <a href="https://github.com/orgs/varavelio/packages/container/package/nsqlite">
-    <img alt="GHCR Pulls" src="https://img.shields.io/badge/ghcr%20pulls-package%20stats-blue?logo=github"/>
-  </a>
-  <a href="LICENSE">
+  <a href="https://github.com/varavelio/nsqlite/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/varavelio/nsqlite.svg" alt="License"/>
   </a>
   <a href="https://github.com/varavelio/nsqlite">
@@ -155,4 +149,4 @@ These variables are required when `NSQLITE_LITESTREAM_ENABLED=true`.
 
 ## License
 
-This project is released under the MIT License. See [LICENSE](LICENSE).
+This project is released under the MIT License. See [LICENSE](https://github.com/varavelio/nsqlite/blob/main/LICENSE).

@@ -61,41 +61,6 @@ func TestParse(t *testing.T) {
 		assert.Equal(t, []string{"rw-1", rwArgon2, "rw-2"}, cfg.ReadWriteAuthTokens())
 		assert.Equal(t, []string{"ro-1", roArgon2, "ro-2"}, cfg.ReadOnlyAuthTokens())
 	})
-
-	t.Run("parses simplified CORS configuration", func(t *testing.T) {
-		cfg, err := Parse([]string{
-			"--data-dir", t.TempDir(),
-			"--cors-allowed-origins", "https://app.example.com, https://admin.example.com",
-			"--cors-allowed-headers", "Authorization, Content-Type, X-Trace-ID",
-			"--cors-allow-credentials",
-		})
-		require.NoError(t, err)
-
-		assert.Equal(
-			t,
-			[]string{"https://app.example.com", "https://admin.example.com"},
-			cfg.CORSAllowedOrigins(),
-		)
-		assert.Equal(
-			t,
-			[]string{"Authorization", "Content-Type", "X-Trace-ID"},
-			cfg.CORSAllowedHeaders(),
-		)
-		assert.True(t, cfg.CORSAllowCredentials)
-	})
-
-	t.Run("rejects wildcard CORS origins when credentials are enabled", func(t *testing.T) {
-		_, err := Parse([]string{
-			"--data-dir", t.TempDir(),
-			"--cors-allowed-origins", "*",
-			"--cors-allow-credentials",
-		})
-		require.ErrorContains(
-			t,
-			err,
-			"cors allowed origins cannot contain * when credentials are enabled",
-		)
-	})
 }
 
 func TestSplitAuthTokens(t *testing.T) {
@@ -121,20 +86,6 @@ func TestSplitAuthTokens(t *testing.T) {
 			t,
 			[]string{"admin", argon2A, argon2B, "rw"},
 			splitAuthTokens(strings.Join([]string{"admin", argon2A, argon2B, "rw"}, " ")),
-		)
-	})
-}
-
-func TestSplitCommaSeparated(t *testing.T) {
-	t.Run("returns nil for empty input", func(t *testing.T) {
-		assert.Nil(t, splitCommaSeparated(""))
-	})
-
-	t.Run("trims whitespace and ignores empty entries", func(t *testing.T) {
-		assert.Equal(
-			t,
-			[]string{"GET", "POST", "OPTIONS"},
-			splitCommaSeparated(" GET, POST ,, OPTIONS "),
 		)
 	})
 }

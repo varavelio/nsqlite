@@ -13,11 +13,12 @@ nav = [
   { "Getting Started" = "index.md" },
   { "Guides" = [
     { "Container Configuration" = "guides/configuration.md" },
+    { "Transactions" = "guides/transactions.md" },
     { "CORS & Browser Access" = "guides/cors.md" },
     { "RQLite Compatibility" = "guides/rqlite-compat.md" }
   ] },
   { "API Docs" = [
-    { "VDL Explorer ↗" = "https://nsqlite.varavel.com/schema/explorer.html" },
+    { "API Explorer ↗" = "https://nsqlite.varavel.com/schema/explorer.html" },
     { "Swagger UI ↗" = "https://nsqlite.varavel.com/schema/swagger.html" },
     { "OpenAPI Spec ↗" = "https://nsqlite.varavel.com/schema/openapi.yaml" }
   ] },

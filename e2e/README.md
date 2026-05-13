@@ -13,6 +13,7 @@ This directory contains black-box end-to-end tests for the real `nsqlite` binary
 - `hurl/system/`: small HTTP-level checks for operational endpoints
 - `hurl/query/`: small HTTP-level checks for SQL query flows
 - `hurl/auth/`: small HTTP-level checks for authentication behavior
+- `hurl/rqlite-compat/`: small HTTP-level checks for rqlite API compatibility behavior
 
 ## Conventions
 

@@ -11,12 +11,12 @@ All configuration is performed through **environment variables**.
 
 ## Server Configuration
 
-| Environment Variable          | CLI Flag                | Description                                                       | Default   |
-| ----------------------------- | ----------------------- | ----------------------------------------------------------------- | --------- |
-| `NSQLITE_DATA_DIR`            | `--data-dir`            | Directory where NSQLite stores its SQLite database files.         | `/data`   |
-| `NSQLITE_LISTEN_HOST`         | `--listen-host`         | Host address for the HTTP server to bind to.                      | `0.0.0.0` |
-| `NSQLITE_LISTEN_PORT`         | `--listen-port`         | TCP port for the HTTP server. Valid range: `1`–`65535`.           | `9876`    |
-| `NSQLITE_MAX_REQUEST_SIZE_MB` | `--max-request-size-mb` | Maximum HTTP request body size (in MB) for the `/query` endpoint. | `100`     |
+| Environment Variable          | Description                                                       | Default   |
+| ----------------------------- | ----------------------------------------------------------------- | --------- |
+| `NSQLITE_DATA_DIR`            | Directory where NSQLite stores its SQLite database files.         | `/data`   |
+| `NSQLITE_LISTEN_HOST`         | Host address for the HTTP server to bind to.                      | `0.0.0.0` |
+| `NSQLITE_LISTEN_PORT`         | TCP port for the HTTP server. Valid range: `1`–`65535`.           | `9876`    |
+| `NSQLITE_MAX_REQUEST_SIZE_MB` | Maximum HTTP request body size (in MB) for the `/query` endpoint. | `100`     |
 
 > **Validation:** `NSQLITE_LISTEN_HOST` must be a valid host address. `NSQLITE_LISTEN_PORT` must be within `1`–`65535`.
 
@@ -28,11 +28,11 @@ NSQLite supports three tiers of access control. Each variable accepts **one or m
 - **bcrypt hashes** (e.g., `$2a$...`)
 - **Argon2id hashes** (e.g., `$argon2id$...`)
 
-| Environment Variable    | CLI Flag          | Role           | Description                                                                                                                                        |
-| ----------------------- | ----------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `NSQLITE_AUTH_TOKEN`    | `--auth-token`    | **Admin**      | Full access to all endpoints, including `/stats`, `/version`, and all query types (read, write, transactions).                                     |
-| `NSQLITE_AUTH_TOKEN_RW` | `--auth-token-rw` | **Read/Write** | Access to `/query` only. Can execute read queries, write queries, and transactions. Cannot access `/stats` or `/version`.                          |
-| `NSQLITE_AUTH_TOKEN_RO` | `--auth-token-ro` | **Read-Only**  | Access to `/query` only. Can only execute read queries (SELECT, etc.). Cannot execute write queries (INSERT, UPDATE, DELETE, DDL) or transactions. |
+| Environment Variable    | Role           | Description                                                                                                                                        |
+| ----------------------- | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NSQLITE_AUTH_TOKEN`    | **Admin**      | Full access to all endpoints, including `/stats`, `/version`, and all query types (read, write, transactions).                                     |
+| `NSQLITE_AUTH_TOKEN_RW` | **Read/Write** | Access to `/query` only. Can execute read queries, write queries, and transactions. Cannot access `/stats` or `/version`.                          |
+| `NSQLITE_AUTH_TOKEN_RO` | **Read-Only**  | Access to `/query` only. Can only execute read queries (SELECT, etc.). Cannot execute write queries (INSERT, UPDATE, DELETE, DDL) or transactions. |
 
 > **When all three are empty/unset:** Authentication is **disabled** — every request is treated as Admin. **Do not use in production without auth.**
 

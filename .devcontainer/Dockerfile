@@ -41,8 +41,8 @@ RUN set -e && \
   apt-get install -yqq --no-install-recommends \
   ca-certificates wget curl zip unzip p7zip-full tzdata git tree ripgrep jq libxml2 \
   python3 python3-pip && \
-  # Install mkdocs-material
-  pip3 install --break-system-packages -qq mkdocs-material mkdocs-llmstxt && \
+  # Install zensical
+  pip3 install --break-system-packages -qq zensical && \
   # Final setup: git config, and cleanup
   git config --global --add safe.directory '*' && \
   rm -rf /var/lib/apt/lists/*

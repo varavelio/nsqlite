@@ -20,7 +20,8 @@
         "svelte.svelte-vscode",
         "Chanzhaoyu.svelte-5-snippets",
         "bradlc.vscode-tailwindcss",
-        "biomejs.biome"
+        "biomejs.biome",
+        "tamasfe.even-better-toml"
       ],
       "settings": {
         "editor.formatOnSave": true,

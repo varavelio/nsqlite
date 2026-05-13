@@ -28,7 +28,7 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: /bin/bash -c "task codegen && mkdocs build"
+          runCmd: /bin/bash -c "task codegen && zensical build"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4

@@ -109,6 +109,10 @@ The container always configures NSQLite through environment variables and it has
 
 > **Browser access:** NSQLite is designed to run on servers. If browser-based access is needed (e.g. for a web based DB explorer), place NSQLite behind a reverse proxy like Nginx or Caddy and configure CORS headers there.
 
+## rqlite Compatibility
+
+NSQLite is compatible with the [rqlite HTTP API](https://rqlite.io/docs/api/api/) request and response format. See [docs/reference/rqlite-compatibility.md](docs/reference/rqlite-compatibility.md) for details.
+
 ## Litestream Configuration
 
 When `NSQLITE_LITESTREAM_ENABLED=true`, the container writes a Litestream config that uses the explicit S3-compatible configurations.

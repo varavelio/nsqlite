@@ -27,7 +27,7 @@ type authToken struct {
 	value string
 }
 
-// newAuthTokens builds the in-memory auth token list for all configured roles.
+// newAuthTokens builds the in-memory auth token list from all configured token sets.
 func newAuthTokens(adminTokens, readWriteTokens, readOnlyTokens []string) []authToken {
 	tokens := make([]authToken, 0, len(adminTokens)+len(readWriteTokens)+len(readOnlyTokens))
 
@@ -58,8 +58,8 @@ func newAuthTokens(adminTokens, readWriteTokens, readOnlyTokens []string) []auth
 	return tokens
 }
 
-// authenticateRequest authenticates the incoming request and resolves its role
-// together with a stable principal identity derived from the presented token.
+// authenticateRequest extracts and verifies the Bearer token from the request.
+// It returns the resolved auth role and a stable principal identity derived from the token.
 func (s *Server) authenticateRequest(r *http.Request) (authRole, string, error) {
 	if s.authIsDisabled() {
 		return authRoleAdmin, "", nil
@@ -81,8 +81,8 @@ func (s *Server) authenticateRequest(r *http.Request) (authRole, string, error) 
 }
 
 // checkAuthWithCache checks the client token against the in-memory cache first.
-// On a cache hit it returns immediately; otherwise it runs the full auth check
-// (bcrypt/argon2/plaintext) and caches the resolved role and principal on success.
+// On a cache miss it scans the configured tokens (bcrypt/argon2id/plaintext)
+// and caches the resolved role on success.
 func (s *Server) checkAuthWithCache(clientToken string) (authRole, string, bool) {
 	if clientToken == "" {
 		return "", "", false
@@ -108,7 +108,8 @@ func (s *Server) checkAuthWithCache(clientToken string) (authRole, string, bool)
 	return "", "", false
 }
 
-// checkAuthToken reports whether the client token matches the configured server token.
+// checkAuthToken reports whether the client token matches the configured server token
+// using the appropriate hash comparison for the token's algorithm.
 func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken, serverToken string) bool {
 	if tokenAlgo == cryptoutil.HashAlgoPlaintext {
 		return clientToken == serverToken
@@ -125,7 +126,6 @@ func checkAuthToken(tokenAlgo cryptoutil.HashAlgo, clientToken, serverToken stri
 	return false
 }
 
-// unauthorizedError returns the standard unauthorized API error.
 func unauthorizedError() error {
 	return httputil.NewJSONError(
 		http.StatusUnauthorized,
@@ -134,7 +134,6 @@ func unauthorizedError() error {
 	)
 }
 
-// forbiddenError returns the standard forbidden API error.
 func forbiddenError() error {
 	return httputil.NewJSONError(
 		http.StatusForbidden,

@@ -10,11 +10,13 @@ import (
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
+// requestProps holds per-request metadata attached to each RPC handler context.
 type requestProps struct {
 	Role      authRole
 	Principal string
 }
 
+// newRPCServer creates and configures the VDL RPC server with all registered procedures.
 func (s *Server) newRPCServer() *vdl.Server[requestProps] {
 	rpcServer := vdl.NewServer[requestProps]()
 	rpcServer.SetErrorHandler(s.rpcErrorHandler)
@@ -25,6 +27,9 @@ func (s *Server) newRPCServer() *vdl.Server[requestProps] {
 	return rpcServer
 }
 
+// rpcHandler is the top-level HTTP handler for all RPC requests.
+// It performs authentication, authorization, request tracking, and dispatches
+// to the appropriate VDL procedure handler.
 func (s *Server) rpcHandler(w http.ResponseWriter, r *http.Request) error {
 	rpcName := r.PathValue("rpcName")
 	operationName := r.PathValue("operationName")
@@ -53,6 +58,8 @@ func (s *Server) rpcHandler(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+// authorizeRPCRequest authenticates the request and enforces role-based access
+// for protected RPC procedures.
 func (s *Server) authorizeRPCRequest(
 	r *http.Request,
 	rpcName string,
@@ -74,6 +81,8 @@ func (s *Server) authorizeRPCRequest(
 	return requestProps{Role: role, Principal: principal}, nil
 }
 
+// rpcErrorHandler is the VDL error handler callback.
+// It logs the error and returns a safe message suitable for the API response.
 func (s *Server) rpcErrorHandler(c *vdl.HandlerContext[requestProps, any], err error) vdl.Error {
 	message := err.Error()
 	var jsonErr httputil.JSONError
@@ -90,6 +99,7 @@ func (s *Server) rpcErrorHandler(c *vdl.HandlerContext[requestProps, any], err e
 	return vdl.Error{Message: message}
 }
 
+// writeRPCError writes a VDL error response to the HTTP writer.
 func (s *Server) writeRPCError(w http.ResponseWriter, err error) error {
 	message := err.Error()
 	var jsonErr httputil.JSONError

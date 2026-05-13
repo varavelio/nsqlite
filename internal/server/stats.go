@@ -8,12 +8,16 @@ import (
 	"github.com/varavelio/nsqlite/internal/version"
 )
 
+// systemSessionProc handles the System.session RPC procedure.
+// It returns the authenticated role for the current request.
 func (s *Server) systemSessionProc(
 	c *vdl.SystemSessionHandlerContext[requestProps],
 ) (vdl.SystemSessionOutput, error) {
 	return vdl.SystemSessionOutput{Role: authRoleToVDL(c.Props.Role)}, nil
 }
 
+// systemStatusProc handles the System.status RPC procedure.
+// It returns server metadata, version information, and current database statistics.
 func (s *Server) systemStatusProc(
 	c *vdl.SystemStatusHandlerContext[requestProps],
 ) (vdl.SystemStatusOutput, error) {
@@ -24,6 +28,7 @@ func (s *Server) systemStatusProc(
 	}, nil
 }
 
+// authRoleToVDL maps an internal auth role to the corresponding VDL type.
 func authRoleToVDL(role authRole) vdl.AuthRole {
 	switch role {
 	case authRoleReadWrite:
@@ -35,6 +40,7 @@ func authRoleToVDL(role authRole) vdl.AuthRole {
 	}
 }
 
+// loadedStatsToVDL converts internal loaded stats into the VDL representation.
 func loadedStatsToVDL(loaded stats.LoadedStats) vdl.Stats {
 	startedAt, err := time.Parse(time.RFC3339, loaded.StartedAt)
 	if err != nil {

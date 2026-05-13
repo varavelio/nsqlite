@@ -5,6 +5,9 @@ import (
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
+// systemHealthProc handles the System.health RPC procedure.
+// It performs a lightweight database query to verify connectivity and returns
+// the overall health status.
 func (s *Server) systemHealthProc(
 	c *vdl.SystemHealthHandlerContext[requestProps],
 ) (vdl.SystemHealthOutput, error) {

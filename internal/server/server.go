@@ -16,31 +16,23 @@ import (
 	"github.com/varavelio/nsqlite/internal/vdl"
 )
 
-// Config represents the configuration for a NSQLite server.
+// Config holds the configuration needed to create and start an NSQLite server.
 type Config struct {
-	// Logger is the shared NSQLite logger.
-	Logger logger.Logger
-	// DBStats is the NSQLite database stats instance to use.
-	DBStats *stats.DBStats
-	// DB is the NSQLite database instance to use.
-	DB *db.DB
-	// AuthTokens are the admin auth tokens.
-	AuthTokens []string
-	// ReadWriteAuthTokens are the read/write auth tokens.
+	Logger              logger.Logger
+	DBStats             *stats.DBStats
+	DB                  *db.DB
+	AuthTokens          []string
 	ReadWriteAuthTokens []string
-	// ReadOnlyAuthTokens are the read-only auth tokens.
-	ReadOnlyAuthTokens []string
-	// ListenHost is the host to listen on.
-	ListenHost string
-	// ListenPort is the port to listen on.
-	ListenPort string
-	// MaxRequestSizeMB is the maximum HTTP request body size in MB.
-	MaxRequestSizeMB int
-	// IdleTimeout is the maximum duration for an idle keep-alive connection.
-	IdleTimeout time.Duration
+	ReadOnlyAuthTokens  []string
+	ListenHost          string
+	ListenPort          string
+	MaxRequestSizeMB    int
+	IdleTimeout         time.Duration
 }
 
-// Server is the server for NSQLite.
+// Server is the HTTP server for NSQLite.
+// It handles RPC requests, manages authentication, and exposes the SQLite database
+// over HTTP through a VDL-based RPC layer.
 type Server struct {
 	Config
 	authTokens     []authToken
@@ -51,7 +43,9 @@ type Server struct {
 	httpServer     http.Server
 }
 
-// NewServer creates a new NSQLite server.
+// NewServer creates a new NSQLite server from the given configuration.
+// Defaults for ListenHost ("0.0.0.0") and ListenPort ("9876") are applied
+// when the corresponding fields are empty.
 func NewServer(config Config) (*Server, error) {
 	if config.ListenHost == "" {
 		config.ListenHost = "0.0.0.0"
@@ -77,29 +71,13 @@ func NewServer(config Config) (*Server, error) {
 	return &s, nil
 }
 
-// IsInitialized returns true if the server is initialized.
+// IsInitialized reports whether the server has been properly initialized.
 func (s *Server) IsInitialized() bool {
 	return s.isInitialized
 }
 
-// createMux creates the HTTP mux for the server.
-func (s *Server) createMux() *http.ServeMux {
-	buildHandler := httputil.CreateHandlerFuncBuilder(s.errorHandler)
-	mux := http.NewServeMux()
-	mux.HandleFunc(
-		"POST /rpc/{rpcName}/{operationName}",
-		buildHandler(s.rpcHandler),
-	)
-
-	return mux
-}
-
-// authIsDisabled reports whether the server should allow every request.
-func (s *Server) authIsDisabled() bool {
-	return len(s.authTokens) == 0
-}
-
-// Start starts the server.
+// Start begins serving HTTP requests on the configured address.
+// It blocks until the server is stopped via Stop or a fatal error occurs.
 func (s *Server) Start() error {
 	mux := s.createMux()
 	addr := fmt.Sprintf("%s:%s", s.ListenHost, s.ListenPort)
@@ -123,7 +101,24 @@ func (s *Server) Start() error {
 	return nil
 }
 
-// Stop gracefully stops the server.
+// Stop gracefully shuts down the HTTP server.
 func (s *Server) Stop() error {
 	return s.httpServer.Shutdown(context.TODO())
+}
+
+// createMux builds the HTTP ServeMux and registers the RPC route.
+func (s *Server) createMux() *http.ServeMux {
+	buildHandler := httputil.CreateHandlerFuncBuilder(s.errorHandler)
+	mux := http.NewServeMux()
+	mux.HandleFunc(
+		"POST /rpc/{rpcName}/{operationName}",
+		buildHandler(s.rpcHandler),
+	)
+
+	return mux
+}
+
+// authIsDisabled reports whether authentication is skipped entirely.
+func (s *Server) authIsDisabled() bool {
+	return len(s.authTokens) == 0
 }

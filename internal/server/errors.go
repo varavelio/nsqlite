@@ -8,6 +8,9 @@ import (
 	"github.com/varavelio/nsqlite/internal/util/httputil"
 )
 
+// errorHandler is the top-level error handler for all HTTP requests.
+// It formats errors into standard JSON responses and logs them with a unique
+// error ID for traceability.
 func (s *Server) errorHandler(
 	w http.ResponseWriter, r *http.Request, err error,
 ) {

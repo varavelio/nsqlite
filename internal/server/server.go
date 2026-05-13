@@ -34,8 +34,6 @@ type Config struct {
 	ListenHost string
 	// ListenPort is the port to listen on.
 	ListenPort string
-	// CORS controls cross-origin request behavior.
-	CORS CORSConfig
 	// MaxRequestSizeMB is the maximum HTTP request body size in MB.
 	MaxRequestSizeMB int
 	// IdleTimeout is the maximum duration for an idle keep-alive connection.
@@ -55,10 +53,6 @@ type Server struct {
 
 // NewServer creates a new NSQLite server.
 func NewServer(config Config) (*Server, error) {
-	if len(config.CORS.AllowedOrigins) == 0 {
-		return nil, fmt.Errorf("cors allowed origins must contain at least one origin")
-	}
-
 	if config.ListenHost == "" {
 		config.ListenHost = "0.0.0.0"
 	}
@@ -112,7 +106,7 @@ func (s *Server) Start() error {
 	localAddr := fmt.Sprintf("http://%s:%s", "localhost", s.ListenPort)
 	s.httpServer = http.Server{
 		Addr:        addr,
-		Handler:     s.corsMiddleware(s.maxRequestBodyMiddleware(mux)),
+		Handler:     s.maxRequestBodyMiddleware(mux),
 		IdleTimeout: s.IdleTimeout,
 	}
 

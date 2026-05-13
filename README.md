@@ -30,12 +30,14 @@
 
 ## Overview
 
-`nsqlite` runs a SQLite-backed HTTP server and ships with a container image that can optionally wrap the process with `litestream` for continuous replication to any S3-compatible object store.
+`nsqlite` runs a docker-first SQLite-backed HTTP server and ships with a container image that can optionally wrap the process with `litestream` for continuous replication to any S3-compatible object store.
 
 Container images are published to both Docker Hub and GitHub Container Registry with matching tags:
 
 - Docker Hub: `varavel/nsqlite:<tag>`
 - GHCR: `ghcr.io/varavelio/nsqlite:<tag>`
+
+For the full documentation site (including an interactive API explorer), visit [nsqlite.varavel.com](https://nsqlite.varavel.com).
 
 ## Quick Start
 

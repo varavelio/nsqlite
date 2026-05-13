@@ -12,9 +12,10 @@ Copyright &copy; Varavel
 nav = [
   { "Getting Started" = "index.md" },
   { "Reference" = [
-    { "Configuration" = "reference/config.md" }
+    { "Configuration" = "reference/config.md" },
+    { "RQLite Compatibility" = "reference/rqlite-compat.md" }
   ] },
-  { "Reference" = [
+  { "API Docs" = [
     { "VDL Explorer ↗" = "https://nsqlite.varavel.com/schema/explorer.html" },
     { "Swagger UI ↗" = "https://nsqlite.varavel.com/schema/swagger.html" },
     { "OpenAPI Spec ↗" = "https://nsqlite.varavel.com/schema/openapi.yaml" }

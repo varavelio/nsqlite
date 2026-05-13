@@ -111,7 +111,7 @@ The container always configures NSQLite through environment variables and it has
 
 ## rqlite Compatibility
 
-NSQLite is compatible with the [rqlite HTTP API](https://rqlite.io/docs/api/api/) request and response format. See [docs/reference/rqlite-compatibility.md](docs/reference/rqlite-compatibility.md) for details.
+NSQLite is compatible with the [rqlite HTTP API](https://rqlite.io/docs/api/api/) request and response format. However, whenever possible, use NSQLite's native RPC format.
 
 ## Litestream Configuration
 

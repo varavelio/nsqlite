@@ -1,13 +1,6 @@
-# Server Configuration
+# Container Configuration
 
 All configuration is performed through **environment variables**.
-
-## Table of Contents
-
-- [Server Configuration](#server-configuration)
-- [Authentication](#authentication)
-- [SQLite Tuning](#sqlite-tuning)
-- [Litestream (Container Only)](#litestream-container-only)
 
 ## Server Configuration
 

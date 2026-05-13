@@ -12,7 +12,7 @@ Copyright &copy; Varavel
 nav = [
   { "Getting Started" = "index.md" },
   { "Guides" = [
-    { "Server Configuration" = "guides/config.md" },
+    { "Container Configuration" = "guides/config.md" },
     { "CORS & Browser Access" = "guides/cors.md" },
     { "RQLite Compatibility" = "guides/rqlite-compat.md" }
   ] },

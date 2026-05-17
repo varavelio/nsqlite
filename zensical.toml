@@ -5,6 +5,7 @@ site_author = "Varavel"
 site_url = "https://nsqlite.varavel.com"
 repo_url = "https://github.com/varavelio/nsqlite"
 repo_name = "varavelio/nsqlite"
+edit_uri = "edit/main/docs/"
 copyright = """
 Copyright &copy; Varavel
 """

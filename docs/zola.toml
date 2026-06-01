@@ -10,6 +10,7 @@ theme = "github-dark"
 varapress_logo_light = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg"
 varapress_logo_dark = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg"
 varapress_favicon = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@76fd87/assets/icon.svg"
+varapress_github_repo = "varavelio/nsqlite"
 varapress_show_title = false
 varapress_llms = true
 varapress_llms_full = true

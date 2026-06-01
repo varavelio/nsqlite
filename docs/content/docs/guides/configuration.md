@@ -3,8 +3,6 @@ title = "Container Configuration"
 weight = 1
 +++
 
-# Container Configuration
-
 This project is designed to be used with Docker and aims to ship with sensible defaults that work out of the box. You shouldn't need to change much. But when you do, everything is here.
 
 All configuration is performed through **environment variables**.

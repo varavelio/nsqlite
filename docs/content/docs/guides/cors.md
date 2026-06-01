@@ -3,8 +3,6 @@ title = "CORS & Browser Access"
 weight = 3
 +++
 
-# CORS & Browser Access
-
 NSQLite is built for server-to-server communication. The HTTP API expects other servers as clients, not browsers.
 
 If you ever need to hit it from a browser (e.g. from a web-based tool) you'll run into CORS. That's normal, and there's a simple fix.

@@ -24,7 +24,6 @@ node_modules
 .svelte-kit
 build
 site
-docs/schema/
 
 # OS
 .DS_Store
@@ -38,3 +37,7 @@ vite.config.ts.timestamp-*
 internal/sqlite/**/*.c
 internal/sqlite/**/*.h
 !internal/sqlite/sqlite.c
+
+# Zola
+docs/static/schema/
+docs/public/

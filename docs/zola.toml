@@ -1,6 +1,7 @@
 title = "NSQLite"
 description = "SQLite over the network, with Litestream support."
 base_url = "https://nsqlite.varavel.com"
+minify_html = true
 theme = "varapress"
 
 [markdown.highlighting]

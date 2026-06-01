@@ -14,3 +14,8 @@ varapress_show_title = false
 varapress_llms = true
 varapress_llms_full = true
 varapress_llms_description_chars = 100
+varapress_sidebar_links = [
+  { new_tab = true, text = "VDL Explorer", link = "https://nsqlite.varavel.com/schema/explorer" },
+  { new_tab = true, text = "Swagger UI", link = "https://nsqlite.varavel.com/schema/swagger" },
+  { new_tab = true, text = "OpenAPI Spec", link = "https://nsqlite.varavel.com/schema/openapi.yaml" },
+]

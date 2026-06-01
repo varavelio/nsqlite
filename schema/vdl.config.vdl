@@ -20,7 +20,7 @@ const config = {
     {
       src "varavelio/vdl-plugin-explorer@v0.1.1"
       schema "./index.vdl"
-      outDir "../docs/schema"
+      outDir "../docs/static/schema"
       options {
         outFile "explorer.html"
         rpcBaseUrl "https://<baseURL>:9876/rpc"
@@ -29,7 +29,7 @@ const config = {
     {
       src "varavelio/vdl-plugin-rpc-openapi@v0.1.3"
       schema "./index.vdl"
-      outDir "../docs/schema"
+      outDir "../docs/static/schema"
       options {
         title "NSQLite API"
         baseUrl "https://<baseURL>:9876/rpc"

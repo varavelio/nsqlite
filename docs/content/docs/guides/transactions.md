@@ -1,3 +1,8 @@
++++
+title = "Transactions"
+weight = 2
++++
+
 # Transactions
 
 NSQLite supports SQLite transactions over the RPC API. A transaction lets you group multiple writes atomically: either all succeed or all are rolled back.

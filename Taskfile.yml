@@ -49,6 +49,12 @@ tasks:
     desc: Build the container entrypoint binary for the current platform
     cmd: mkdir -p ./dist && CGO_ENABLED=0 go build -trimpath -ldflags "{{.LDFLAGS}}" -o ./dist/entrypoint ./cmd/entrypoint
 
+  build:docs:
+    desc: Build the docs website
+    deps:
+      - codegen
+    cmd: cd ./docs && node ./themes/varapress/llms.mjs
+
   run:
     desc: Run the project (blocking)
     deps:

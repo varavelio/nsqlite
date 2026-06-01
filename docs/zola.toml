@@ -1,0 +1,15 @@
+title = "NSQLite"
+description = "SQLite over the network, with Litestream support."
+base_url = "https://nsqlite.varavel.com"
+theme = "varapress"
+
+[markdown.highlighting]
+theme = "github-dark"
+
+[extra]
+varapress_logo_light = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg"
+varapress_logo_dark = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@dbf7ff/assets/logo.svg"
+varapress_favicon = "https://cdn.jsdelivr.net/gh/varavelio/nsqlite@76fd87/assets/icon.svg"
+varapress_llms = true
+varapress_llms_full = true
+varapress_llms_description_chars = 100

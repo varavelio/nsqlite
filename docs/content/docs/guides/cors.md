@@ -1,3 +1,8 @@
++++
+title = "CORS & Browser Access"
+weight = 3
++++
+
 # CORS & Browser Access
 
 NSQLite is built for server-to-server communication. The HTTP API expects other servers as clients, not browsers.

@@ -28,7 +28,7 @@ jobs:
         uses: devcontainers/ci@v0.3
         with:
           push: never
-          runCmd: /bin/bash -c "task codegen && zensical build"
+          runCmd: /bin/bash -c "task build:docs"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,7 +40,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
         run: |
-          OUTPUT=$(npx wrangler pages deploy ./site \
+          OUTPUT=$(npx wrangler pages deploy ./docs/public \
             --project-name=varavel-nsqlite \
             --branch="${{ github.ref_name }}" \
             --commit-hash="${{ github.sha }}" \

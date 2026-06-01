@@ -1,0 +1,3 @@
+[submodule "docs/themes/varapress"]
+	path = docs/themes/varapress
+	url = https://github.com/varavelio/varapress.git
